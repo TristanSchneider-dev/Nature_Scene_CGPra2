@@ -1,0 +1,51 @@
+# --- Build & CMake (Standard & CLion) ---
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.ninja
+*.cmake
+!CMakeLists.txt
+
+# --- Executables & Libraries ---
+*.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+*.o
+*.obj
+
+# --- JetBrains (CLion, IntelliJ, etc.) ---
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# --- Visual Studio Code ---
+.vscode/
+*.code-workspace
+
+# --- Visual Studio (Windows IDE) ---
+.vs/
+*.user
+*.suo
+*.opensdf
+*.sdf
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# --- OS Specific Files ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- OpenGL/Glad Specific ---
+# Wir ignorieren NICHT libs/glad, damit das Repo direkt funktioniert.
+# Falls du glad aber nicht im Repo haben willst, entferne das # vor der nächsten Zeile:
+# libs/glad/
