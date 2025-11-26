@@ -3,17 +3,16 @@
 #include "imgui_impl_opengl3.h"
 #include <iostream>
 
-UIManager::UIManager(GLFWwindow* window) 
-    : m_window(window), m_isFullscreen(false), 
-      m_windowedX(100), m_windowedY(100), 
+UIManager::UIManager(GLFWwindow* window)
+    : m_window(window), m_isFullscreen(false),
+      m_windowedX(100), m_windowedY(100),
       m_windowedWidth(1280), m_windowedHeight(720)
 {
-    // ImGui Kontext initialisieren
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::StyleColorsDark();
-    
+
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 }
@@ -30,20 +29,19 @@ void UIManager::beginFrame() {
     ImGui::NewFrame();
 }
 
-void UIManager::renderUI(Camera& camera) {
+void UIManager::renderUI(Camera& camera, int& terrainRes, float& terrainSize, bool& meshChanged) {
     ImGui::Begin("Settings");
 
-    // Performance Info
+    // --- ALTE UI ELEMENTE ---
+    ImGui::Text("System Info");
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
-    // Fullscreen Toggle
     if (ImGui::Button(m_isFullscreen ? "Exit Fullscreen" : "Go Fullscreen")) {
         toggleFullscreen();
     }
 
     ImGui::Separator();
-    
-    // Resolution Buttons
+
     ImGui::Text("Resolution (Windowed)");
     if (ImGui::Button("800x600")) setResolution(800, 600);
     ImGui::SameLine();
@@ -55,10 +53,19 @@ void UIManager::renderUI(Camera& camera) {
 
     ImGui::Separator();
 
-    // --- controls text update ---
-    ImGui::Text("Controls:");
+    // --- NEUE UI ELEMENTE (TERRAIN) ---
+    ImGui::Text("Terrain Settings");
+    // Wenn wir hier ziehen, setzen wir meshChanged auf true
+    if (ImGui::SliderInt("Resolution", &terrainRes, 2, 200)) {
+        meshChanged = true;
+    }
+    if (ImGui::DragFloat("Size", &terrainSize, 0.5f, 10.0f, 500.0f)) {
+        meshChanged = true;
+    }
 
-    // Aktuellen Modus anzeigen (Optional, aber hilfreich)
+    ImGui::Separator();
+
+    ImGui::Text("Controls:");
     const char* modeText = (camera.mode == Camera::FREE) ? "FREE" :
                            (camera.mode == Camera::ORBIT) ? "ORBIT" : "FIXED";
     ImGui::TextColored(ImVec4(0, 1, 0, 1), "Current Mode: %s", modeText);
@@ -85,17 +92,12 @@ void UIManager::toggleFullscreen() {
     m_isFullscreen = !m_isFullscreen;
 
     if (m_isFullscreen) {
-        // Backup alte Position
         glfwGetWindowPos(m_window, &m_windowedX, &m_windowedY);
         glfwGetWindowSize(m_window, &m_windowedWidth, &m_windowedHeight);
-
-        // Monitor Info holen
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-
         glfwSetWindowMonitor(m_window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     } else {
-        // Restore
         glfwSetWindowMonitor(m_window, nullptr, m_windowedX, m_windowedY, m_windowedWidth, m_windowedHeight, 0);
     }
 }
