@@ -4,7 +4,7 @@
 
 Camera::Camera()
     : mode(FREE), lastMode(FREE), // Default ist jetzt FREE
-      position(0.0f, 0.0f, 5.0f), front(0.0f, 0.0f, -1.0f), up(0.0f, 1.0f, 0.0f),
+      position(0.0f, 1.0f, 5.0f), front(0.0f, 0.0f, -1.0f), up(0.0f, 1.0f, 0.0f),
       yaw(-90.0f), pitch(0.0f), fov(70.0f),
       lastX(600.0f), lastY(600.0f), firstMouse(true), cameraSpeed(5.0f),
       orbitCenter(0.0f, 0.0f, 0.0f), orbitRadius(5.0f), orbitYaw(0.0f), orbitPitch(5.0f), orbitSpeed(10.0f),
