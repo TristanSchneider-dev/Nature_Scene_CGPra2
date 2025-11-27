@@ -1,0 +1,15 @@
+{
+  "name": "terrain-opengl",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "glfw3",
+    "glm",
+    "assimp",
+    "opengl",
+    "stb",
+    {
+      "name": "imgui",
+      "features": ["glfw-binding", "opengl3-binding"]
+    }
+  ]
+}

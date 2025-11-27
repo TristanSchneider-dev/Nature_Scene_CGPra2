@@ -11,10 +11,7 @@ public:
     ~UIManager();
 
     void beginFrame();
-
-    // UPDATE: Neue Parameter für das Terrain hinzugefügt
-    void renderUI(Camera& camera, int& terrainRes, float& terrainSize, bool& meshChanged);
-
+    void renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap);
     void endFrame();
 
     void toggleFullscreen();

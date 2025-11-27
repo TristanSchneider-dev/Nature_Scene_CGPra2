@@ -29,10 +29,9 @@ void UIManager::beginFrame() {
     ImGui::NewFrame();
 }
 
-void UIManager::renderUI(Camera& camera, int& terrainRes, float& terrainSize, bool& meshChanged) {
+void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap) {
     ImGui::Begin("Settings");
 
-    // --- ALTE UI ELEMENTE ---
     ImGui::Text("System Info");
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
@@ -42,39 +41,20 @@ void UIManager::renderUI(Camera& camera, int& terrainRes, float& terrainSize, bo
 
     ImGui::Separator();
 
-    ImGui::Text("Resolution (Windowed)");
-    if (ImGui::Button("800x600")) setResolution(800, 600);
-    ImGui::SameLine();
-    if (ImGui::Button("1280x720")) setResolution(1280, 720);
-    ImGui::SameLine();
-    if (ImGui::Button("1920x1080")) setResolution(1920, 1080);
-    ImGui::SameLine();
-    if (ImGui::Button("2650x1440")) setResolution(2560, 1440);
-
-    ImGui::Separator();
-
-    // --- NEUE UI ELEMENTE (TERRAIN) ---
-    ImGui::Text("Terrain Settings");
-    // Wenn wir hier ziehen, setzen wir meshChanged auf true
-    if (ImGui::SliderInt("Resolution", &terrainRes, 2, 200)) {
-        meshChanged = true;
-    }
-    if (ImGui::DragFloat("Size", &terrainSize, 0.5f, 10.0f, 500.0f)) {
-        meshChanged = true;
-    }
+    ImGui::Text("Visual Effects");
+    ImGui::Checkbox("Enable Normal Mapping", &useNormalMap);
+    ImGui::Checkbox("Enable PBR Materials (ARM)", &useARMMap);
 
     ImGui::Separator();
 
     ImGui::Text("Controls:");
-    const char* modeText = (camera.mode == Camera::FREE) ? "FREE" :
-                           (camera.mode == Camera::ORBIT) ? "ORBIT" : "FIXED";
+    const char* modeText = (camera.mode == Camera::FREE) ? "FREE" : "ORBIT";
     ImGui::TextColored(ImVec4(0, 1, 0, 1), "Current Mode: %s", modeText);
 
     ImGui::BulletText("'1': Free Camera (WASD + Mouse)");
     ImGui::BulletText("'2': Orbit Camera");
-    ImGui::BulletText("'3': Fixed Camera");
     ImGui::BulletText("'F': Toggle Fullscreen");
-    ImGui::BulletText("'ALT': Press to Toggle Mouse"); // Hier geändert auf Press/Toggle
+    ImGui::BulletText("'ALT': Toggle Mouse");
 
     ImGui::End();
 }
