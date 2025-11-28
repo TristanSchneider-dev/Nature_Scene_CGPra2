@@ -49,7 +49,7 @@ int main()
 
     // 1. Haupt-Gras
     // Seed 1, Typ GRASS (Kreuz)
-    GrassRenderer grassMain(terrain, 400000, "../assets/textures/grass_blade01.png", 1, GRASS);
+    GrassRenderer grassMain(terrain, 40000, "../assets/textures/grass_blade01.png", 1, GRASS);
     grassMain.setColors(glm::vec3(0.34f, 0.40f, 0.05f), glm::vec3(0.27f, 0.31f, 0.07f));
 
     // 2. Variation (Einzelhalme zur Auflockerung)
