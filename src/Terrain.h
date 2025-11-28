@@ -11,8 +11,11 @@ public:
 
     void draw(Shader& shader);
 
-    // NEU: Nur noch ein Getter. Das Terrain rechnet nicht mehr selbst.
     const std::vector<float>& getVertices() const { return m_vertices; }
+    void freeClientMemory() {
+        m_vertices.clear();
+        m_vertices.shrink_to_fit();
+    }
 
 private:
     unsigned int VAO, VBO, EBO, indexCount;
@@ -27,3 +30,4 @@ private:
     unsigned int loadTexture(const char* path);
     unsigned int createDefaultARM(float ao, float roughness, float metallic);
 };
+

@@ -61,8 +61,11 @@ int main()
     // 3. Blätter (Selten, am Boden)
     // Seed 3, Typ LEAF, Textur leaf01
     GrassRenderer leaves(terrain, 50000, "../assets/textures/leaf01.png", 3, LEAF);
-    // Farben: Kastanienbraun
+
+    terrain.freeClientMemory();
+
     leaves.setColors(glm::vec3(0.42f, 0.20f, 0.10f), glm::vec3(0.55f, 0.35f, 0.15f));
+
 
     // --- TERRAIN UNIFORMS ---
     terrainShader.use();
