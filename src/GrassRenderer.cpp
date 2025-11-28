@@ -16,7 +16,7 @@ float organicNoise(float x, float z) {
 GrassRenderer::GrassRenderer(const Terrain& terrain, int amount, const std::string& texturePath, int seed, VegetationType type)
     : seed(seed), type(type)
 {
-    this->shader = new Shader("../shaders/grass.vs.glsl", "../shaders/grass.fs.glsl");
+    this->shader = std::make_unique<Shader>("../shaders/grass.vs.glsl", "../shaders/grass.fs.glsl");
     this->textureID = loadTexture(texturePath.c_str());
 
     this->colHealthy = glm::vec3(0.34f, 0.40f, 0.05f);
@@ -52,7 +52,6 @@ GrassRenderer::GrassRenderer(const Terrain& terrain, int amount, const std::stri
 }
 
 GrassRenderer::~GrassRenderer() {
-    delete shader;
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &instanceVBO);

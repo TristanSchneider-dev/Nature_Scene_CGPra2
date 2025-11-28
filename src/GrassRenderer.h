@@ -24,7 +24,7 @@ private:
     unsigned int VAO, VBO, instanceVBO;
     unsigned int textureID;
     unsigned int amount;
-    Shader* shader;
+    std::unique_ptr<Shader> shader;
 
     // Farben
     glm::vec3 colHealthy;
