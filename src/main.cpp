@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <thread>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -113,7 +114,16 @@ int main()
         glfwPollEvents();
 
         if (limitFps && fpsLimit > 0) {
-            while (glfwGetTime() < currentFrame + 1.0 / fpsLimit) { }
+            double targetFrameTime = 1.0 / fpsLimit;
+            while (glfwGetTime() < currentFrame + targetFrameTime) {
+                // Schlafe für den Rest der Zeit, aber wecke kurz vorher auf für Präzision
+                double timeToWait = (currentFrame + targetFrameTime) - glfwGetTime();
+                if (timeToWait > 0.002) { // Wenn mehr als 2ms übrig sind, schlafen
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                } else {
+                    // Die letzten Mikrosekunden busy-waiten für Präzision (Hybrid-Ansatz)
+                }
+            }
         }
     }
     glfwTerminate();
