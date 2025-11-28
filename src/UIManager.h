@@ -11,8 +11,10 @@ public:
     ~UIManager();
 
     void beginFrame();
-    // Signatur erweitert: limitFps und fpsLimit
-    void renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit);
+
+    // NEU: float& fogDensity am Ende hinzugefügt
+    void renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit, bool& enableFog, float& fogDensity);
+
     void endFrame();
 
     void toggleFullscreen();

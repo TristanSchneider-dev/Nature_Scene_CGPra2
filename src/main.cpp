@@ -2,7 +2,6 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <thread>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -13,16 +12,30 @@
 #include "Terrain.h"
 #include "InputManager.h"
 #include "GrassRenderer.h"
+#include "PostProcessor.h"
 
 #include <iostream>
+#include <thread>
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
+const float NEAR_PLANE = 0.1f;
+const float FAR_PLANE = 1000.0f;
 
+// Settings
 bool useNormalMap = true;
 bool useARMMap = true;
-bool limitFps = false;
+bool limitFps = true;
 int fpsLimit = 60;
+bool enableFog = true;
+float fogDensity = 0.015f;
+
+glm::vec3 fogColor = glm::vec3(0.5f, 0.6f, 0.7f);
+
+// Callback nur noch für Viewport
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    glViewport(0, 0, width, height);
+}
 
 int main()
 {
@@ -34,40 +47,32 @@ int main()
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Terrain Engine", NULL, NULL);
     if (!window) { glfwTerminate(); return -1; }
     glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
-
     glEnable(GL_DEPTH_TEST);
 
     Camera camera(glm::vec3(0.0f, 5.0f, 20.0f));
     UIManager ui(window);
     InputManager inputManager(window, camera, ui);
 
+    // Initial PostProcessor
+    int fbW, fbH;
+    glfwGetFramebufferSize(window, &fbW, &fbH);
+    PostProcessor postEffects(fbW, fbH);
+
     Shader terrainShader("../shaders/terrain.vs.glsl", "../shaders/terrain.fs.glsl");
     Terrain terrain("../assets/objects/landscape.fbx");
 
-    // --- VEGETATION CONFIG ---
-
-    // 1. Haupt-Gras
-    // Seed 1, Typ GRASS (Kreuz)
     GrassRenderer grassMain(terrain, 40000, "../assets/textures/grass_blade01.png", 1, GRASS);
     grassMain.setColors(glm::vec3(0.34f, 0.40f, 0.05f), glm::vec3(0.27f, 0.31f, 0.07f));
 
-    // 2. Variation (Einzelhalme zur Auflockerung)
-    // Seed 2, Typ SINGLE_BLADE (Flach), Textur blade02
     GrassRenderer grassVar(terrain, 80000, "../assets/textures/grass_blade02.png", 2, SINGLE_BLADE);
     grassVar.setColors(glm::vec3(0.40f, 0.50f, 0.10f), glm::vec3(0.35f, 0.35f, 0.15f));
 
-    // 3. Blätter (Selten, am Boden)
-    // Seed 3, Typ LEAF, Textur leaf01
     GrassRenderer leaves(terrain, 50000, "../assets/textures/leaf01.png", 3, LEAF);
-
-    terrain.freeClientMemory();
-
     leaves.setColors(glm::vec3(0.42f, 0.20f, 0.10f), glm::vec3(0.55f, 0.35f, 0.15f));
 
-
-    // --- TERRAIN UNIFORMS ---
     terrainShader.use();
     terrainShader.setInt("texGravelDiff", 0); terrainShader.setInt("texGravelNor", 1); terrainShader.setInt("texGravelArm", 2);
     terrainShader.setInt("texPebblesDiff", 3); terrainShader.setInt("texPebblesNor", 4); terrainShader.setInt("texPebblesArm", 5);
@@ -85,15 +90,21 @@ int main()
         lastFrame = currentFrame;
 
         inputManager.processInput(deltaTime);
-        ui.beginFrame();
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        // --- RESIZE CHECK ---
+        int currentW, currentH;
+        glfwGetFramebufferSize(window, &currentW, &currentH);
+        postEffects.checkResize(currentW, currentH);
+
+        // 1. Render Scene to FBO
+        postEffects.beginRender();
+        glClearColor(fogColor.r, fogColor.g, fogColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glm::mat4 projection = glm::perspective(glm::radians(camera.getFov()), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+        float aspect = (float)currentW / (float)currentH;
+        glm::mat4 projection = glm::perspective(glm::radians(camera.getFov()), aspect, NEAR_PLANE, FAR_PLANE);
         glm::mat4 view = camera.getViewMatrix();
 
-        // Terrain
         terrainShader.use();
         terrainShader.setBool("useNormalMap", useNormalMap);
         terrainShader.setBool("useARMMap", useARMMap);
@@ -103,14 +114,21 @@ int main()
         terrainShader.setVec3("viewPos", camera.getPosition());
         terrain.draw(terrainShader);
 
-        // Vegetation
         glDisable(GL_CULL_FACE);
         grassMain.draw(view, projection);
         grassVar.draw(view, projection);
         leaves.draw(view, projection);
         glEnable(GL_CULL_FACE);
 
-        ui.renderUI(camera, useNormalMap, useARMMap, limitFps, fpsLimit);
+        // 2. Post Processing (Fog)
+        // Hier entscheiden wir basierend auf dem Toggle, wie dicht der Nebel ist
+        float effectiveDensity = enableFog ? fogDensity : 0.0f;
+        postEffects.endRender(NEAR_PLANE, FAR_PLANE, fogColor, effectiveDensity);
+
+        // 3. UI
+        ui.beginFrame();
+        // Hier übergeben wir enableFog, damit die Checkbox es steuern kann
+        ui.renderUI(camera, useNormalMap, useARMMap, limitFps, fpsLimit, enableFog, fogDensity);
         ui.endFrame();
 
         glfwSwapBuffers(window);
@@ -118,17 +136,18 @@ int main()
 
         if (limitFps && fpsLimit > 0) {
             double targetFrameTime = 1.0 / fpsLimit;
+
+            // Wir warten einfach in einer leeren Schleife, bis die Zeit exakt erreicht ist.
+            // Keine Sleep-Befehle, da diese unter Windows zu ungenau sind.
             while (glfwGetTime() < currentFrame + targetFrameTime) {
-                // Schlafe für den Rest der Zeit, aber wecke kurz vorher auf für Präzision
-                double timeToWait = (currentFrame + targetFrameTime) - glfwGetTime();
-                if (timeToWait > 0.002) { // Wenn mehr als 2ms übrig sind, schlafen
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                } else {
-                    // Die letzten Mikrosekunden busy-waiten für Präzision (Hybrid-Ansatz)
-                }
+                // Optional: std::this_thread::yield() gibt anderen Threads kurz Vorrang,
+                // ist aber viel präziser als sleep. Wenn es immer noch ruckelt,
+                // entferne die Zeile und lass die Schleife komplett leer.
+                std::this_thread::yield();
             }
         }
     }
+
     glfwTerminate();
     return 0;
 }

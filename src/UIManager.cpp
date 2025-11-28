@@ -4,7 +4,7 @@
 #include <iostream>
 
 UIManager::UIManager(GLFWwindow* window)
-    : m_window(window), m_isFullscreen(false), m_vsyncEnabled(true),
+    : m_window(window), m_isFullscreen(false), m_vsyncEnabled(false),
       m_windowedX(100), m_windowedY(100),
       m_windowedWidth(1280), m_windowedHeight(720)
 {
@@ -31,19 +31,17 @@ void UIManager::beginFrame() {
     ImGui::NewFrame();
 }
 
-void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit) {
+// NEU: Parameter enableFog übernehmen
+void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit, bool& enableFog, float& fogDensity) {
     ImGui::Begin("Settings");
 
     ImGui::Text("System Info");
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 
-    // VSync Steuerung
     if (ImGui::Checkbox("VSync", &m_vsyncEnabled)) {
         setVSync(m_vsyncEnabled);
     }
 
-    // FPS Limiter Steuerung
-    // Zeige Slider nur, wenn Limiter aktiv ist
     ImGui::Checkbox("Limit FPS", &limitFps);
     if (limitFps) {
         ImGui::Indent();
@@ -60,6 +58,17 @@ void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bo
     ImGui::Text("Visual Effects");
     ImGui::Checkbox("Enable Normal Mapping", &useNormalMap);
     ImGui::Checkbox("Enable PBR Materials (ARM)", &useARMMap);
+
+    // --- NEBEL CONFIG ---
+    ImGui::Checkbox("Enable Fog", &enableFog);
+    if (enableFog) {
+        ImGui::Indent();
+        // Slider von 0.001 (sehr leicht) bis 0.1 (extrem dicht)
+        // "%.3f" zeigt 3 Nachkommastellen an, damit man fein tunen kann
+        ImGui::SliderFloat("Intensity", &fogDensity, 0.0f, 0.1f, "%.3f");
+        ImGui::Unindent();
+    }
+    // --------------------
 
     ImGui::Separator();
 

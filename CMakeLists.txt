@@ -28,6 +28,7 @@ add_executable(TerrainOpenGL
         libs/glad/src/glad.c
         src/GrassRenderer.h
         src/GrassRenderer.cpp
+        src/PostProcessor.h
 )
 
 # Include Directories
