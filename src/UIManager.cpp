@@ -4,7 +4,7 @@
 #include <iostream>
 
 UIManager::UIManager(GLFWwindow* window)
-    : m_window(window), m_isFullscreen(false),
+    : m_window(window), m_isFullscreen(false), m_vsyncEnabled(true),
       m_windowedX(100), m_windowedY(100),
       m_windowedWidth(1280), m_windowedHeight(720)
 {
@@ -15,6 +15,8 @@ UIManager::UIManager(GLFWwindow* window)
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
+
+    setVSync(true);
 }
 
 UIManager::~UIManager() {
@@ -29,11 +31,25 @@ void UIManager::beginFrame() {
     ImGui::NewFrame();
 }
 
-void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap) {
+void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit) {
     ImGui::Begin("Settings");
 
     ImGui::Text("System Info");
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+
+    // VSync Steuerung
+    if (ImGui::Checkbox("VSync", &m_vsyncEnabled)) {
+        setVSync(m_vsyncEnabled);
+    }
+
+    // FPS Limiter Steuerung
+    // Zeige Slider nur, wenn Limiter aktiv ist
+    ImGui::Checkbox("Limit FPS", &limitFps);
+    if (limitFps) {
+        ImGui::Indent();
+        ImGui::SliderInt("Max FPS", &fpsLimit, 30, 240);
+        ImGui::Unindent();
+    }
 
     if (ImGui::Button(m_isFullscreen ? "Exit Fullscreen" : "Go Fullscreen")) {
         toggleFullscreen();
@@ -50,8 +66,7 @@ void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap) {
     ImGui::Text("Controls:");
     const char* modeText = (camera.mode == Camera::FREE) ? "FREE" : "ORBIT";
     ImGui::TextColored(ImVec4(0, 1, 0, 1), "Current Mode: %s", modeText);
-
-    ImGui::BulletText("'1': Free Camera (WASD + Mouse)");
+    ImGui::BulletText("'1': Free Camera");
     ImGui::BulletText("'2': Orbit Camera");
     ImGui::BulletText("'F': Toggle Fullscreen");
     ImGui::BulletText("'ALT': Toggle Mouse");
@@ -77,9 +92,15 @@ void UIManager::toggleFullscreen() {
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* mode = glfwGetVideoMode(monitor);
         glfwSetWindowMonitor(m_window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        setVSync(m_vsyncEnabled);
     } else {
         glfwSetWindowMonitor(m_window, nullptr, m_windowedX, m_windowedY, m_windowedWidth, m_windowedHeight, 0);
+        setVSync(m_vsyncEnabled);
     }
+}
+
+void UIManager::setVSync(bool enabled) {
+    glfwSwapInterval(enabled ? 1 : 0);
 }
 
 void UIManager::setResolution(int width, int height) {

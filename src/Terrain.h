@@ -1,8 +1,7 @@
 #pragma once
 #include <glad/glad.h>
-#include <glm/glm.hpp>
-#include <string>
 #include <vector>
+#include <string>
 #include "Shader.h"
 
 class Terrain {
@@ -12,14 +11,16 @@ public:
 
     void draw(Shader& shader);
 
-private:
-    unsigned int VAO, VBO, EBO;
-    unsigned int indexCount;
+    // NEU: Nur noch ein Getter. Das Terrain rechnet nicht mehr selbst.
+    const std::vector<float>& getVertices() const { return m_vertices; }
 
-    // Textur-IDs
-    unsigned int tPebbleD, tPebbleN, tPebbleARM; // Jetzt auf Slot 0-2 (ehemals Gravel)
-    unsigned int tGravelD, tGravelN, tGravelARM; // Jetzt auf Slot 3-5 (ehemals Pebble)
+private:
+    unsigned int VAO, VBO, EBO, indexCount;
+    unsigned int tPebbleD, tPebbleN, tPebbleARM;
+    unsigned int tGravelD, tGravelN, tGravelARM;
     unsigned int tRockD, tRockN, tRockARM;
+
+    std::vector<float> m_vertices; // Die rohen Daten
 
     void loadModel(const std::string& path);
     void loadTextures();
