@@ -29,6 +29,8 @@ add_executable(TerrainOpenGL
         src/GrassRenderer.h
         src/GrassRenderer.cpp
         src/PostProcessor.h
+        src/Model.h
+        src/Model.cpp
 )
 
 # Include Directories
