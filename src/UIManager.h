@@ -13,7 +13,7 @@ public:
     void beginFrame();
 
     // NEU: float& fogDensity am Ende hinzugefügt
-    void renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit, bool& enableFog, float& fogDensity);
+    void renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit, bool& enableFog, float& fogDensity, float& waterSpeed, float& waterSteepness, float& waterWavelength);
 
     void endFrame();
 

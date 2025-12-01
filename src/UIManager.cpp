@@ -32,7 +32,7 @@ void UIManager::beginFrame() {
     ImGui::NewFrame();
 }
 
-void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit, bool& enableFog, float& fogDensity) {
+void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit, bool& enableFog, float& fogDensity, float& waterSpeed, float& waterSteepness, float& waterWavelength) {
     ImGui::Begin("Settings");
 
     ImGui::Text("System Info");
@@ -54,6 +54,20 @@ void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bo
     }
 
     ImGui::Separator();
+
+    // --- WASSER CONTROLS ---
+    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Water Simulation");
+    ImGui::SliderFloat("Speed", &waterSpeed, 0.0f, 3.0f);
+    ImGui::SliderFloat("Height", &waterSteepness, 0.0f, 2.0f);
+    ImGui::SliderFloat("Length", &waterWavelength, 0.1f, 5.0f);
+
+    if (ImGui::Button("Reset Water")) {
+        waterSpeed = 1.0f;
+        waterSteepness = 1.0f;
+        waterWavelength = 1.0f;
+    }
+    ImGui::Separator();
+    // -----------------------
 
     ImGui::Text("Visual Effects");
     ImGui::Checkbox("Enable Normal Mapping", &useNormalMap);

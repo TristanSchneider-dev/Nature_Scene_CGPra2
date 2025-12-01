@@ -31,6 +31,7 @@ add_executable(TerrainOpenGL
         src/PostProcessor.h
         src/Model.h
         src/Model.cpp
+        src/WaterPlane.h
 )
 
 # Include Directories
