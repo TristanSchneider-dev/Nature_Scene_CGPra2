@@ -1,8 +1,8 @@
 #pragma once
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "Camera.h"
+#include "SceneManager.h"
 #include "imgui.h"
 
 class UIManager {
@@ -11,11 +11,13 @@ public:
     ~UIManager();
 
     void beginFrame();
-
-    // NEU: float& fogDensity am Ende hinzugefügt
-    void renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit, bool& enableFog, float& fogDensity, float& waterSpeed, float& waterSteepness, float& waterWavelength);
-
     void endFrame();
+
+    // Wasser-Variablen entfernt, da jetzt in SceneManager
+    void renderUI(Camera& camera, SceneManager& sceneManager,
+                  bool& useNormalMap, bool& useARMMap,
+                  bool& limitFps, int& fpsLimit,
+                  bool& enableFog, float& fogDensity);
 
     void toggleFullscreen();
     void setVSync(bool enabled);
@@ -27,6 +29,4 @@ private:
     bool m_vsyncEnabled;
     int m_windowedX, m_windowedY;
     int m_windowedWidth, m_windowedHeight;
-
-    void setResolution(int width, int height);
 };

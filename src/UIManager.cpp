@@ -1,22 +1,15 @@
 #include "UIManager.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include <iostream>
 
 UIManager::UIManager(GLFWwindow* window)
-    : m_window(window), m_isFullscreen(false),
-      m_vsyncEnabled(true), // FIX: Init auf true, da setVSync(true) unten aufgerufen wird
-      m_windowedX(100), m_windowedY(100),
-      m_windowedWidth(1280), m_windowedHeight(720)
+    : m_window(window), m_isFullscreen(false), m_vsyncEnabled(true)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::StyleColorsDark();
-
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
-
     setVSync(true);
 }
 
@@ -32,64 +25,114 @@ void UIManager::beginFrame() {
     ImGui::NewFrame();
 }
 
-void UIManager::renderUI(Camera& camera, bool& useNormalMap, bool& useARMMap, bool& limitFps, int& fpsLimit, bool& enableFog, float& fogDensity, float& waterSpeed, float& waterSteepness, float& waterWavelength) {
-    ImGui::Begin("Settings");
+void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
+                         bool& useNormalMap, bool& useARMMap,
+                         bool& limitFps, int& fpsLimit,
+                         bool& enableFog, float& fogDensity)
+{
+    ImGui::Begin("Engine Controls");
 
-    ImGui::Text("System Info");
-    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    if (ImGui::BeginTabBar("Tabs")) {
 
-    if (ImGui::Checkbox("VSync", &m_vsyncEnabled)) {
-        setVSync(m_vsyncEnabled);
+        // --- TAB 1: LEVEL EDITOR ---
+        if (ImGui::BeginTabItem("Level Editor")) {
+
+            // A. ENVIRONMENT SETTINGS (Jetzt hier!)
+            ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Environment");
+            ImGui::SliderFloat("Water Height", &sceneManager.env.waterHeight, -10.0f, 5.0f);
+            ImGui::SliderFloat("Water Speed",  &sceneManager.env.waterSpeed, 0.0f, 2.0f);
+            ImGui::SliderFloat("Wave Height",  &sceneManager.env.waterSteepness, 0.0f, 1.0f);
+            ImGui::SliderFloat("Wave Length",  &sceneManager.env.waterWavelength, 0.1f, 5.0f);
+
+            ImGui::Separator();
+
+            // B. OBJEKT SPAWNER
+            ImGui::Text("Spawn Object:");
+            static std::string currentModel = "";
+            if (ImGui::BeginCombo("Asset", currentModel.c_str())) {
+                for (auto const& [key, val] : sceneManager.getResources()) {
+                    bool isSelected = (currentModel == key);
+                    if (ImGui::Selectable(key.c_str(), isSelected)) currentModel = key;
+                    if (isSelected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (ImGui::Button("Spawn") && !currentModel.empty()) {
+                sceneManager.addInstance(currentModel);
+            }
+
+            ImGui::Separator();
+
+            // C. SCENE LISTE
+            ImGui::Text("Scene Objects:");
+            auto& objects = sceneManager.getObjects();
+            if (ImGui::BeginListBox("##SceneList", ImVec2(-FLT_MIN, 150))) {
+                for (int i = 0; i < objects.size(); i++) {
+                    const bool isSelected = (sceneManager.selectedObjectID == i);
+                    if (ImGui::Selectable(objects[i].name.c_str(), isSelected)) {
+                        sceneManager.selectedObjectID = i;
+                    }
+                }
+                ImGui::EndListBox();
+            }
+
+            // D. TRANSFORM GIZMOS
+            if (sceneManager.selectedObjectID >= 0 && sceneManager.selectedObjectID < objects.size()) {
+                SceneObject& sel = objects[sceneManager.selectedObjectID];
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(1,1,0,1), "Selected: %s", sel.name.c_str());
+                ImGui::DragFloat3("Pos", &sel.position.x, 0.1f);
+                ImGui::DragFloat3("Rot", &sel.rotation.x, 1.0f);
+                ImGui::DragFloat3("Scale", &sel.scale.x, 0.05f);
+
+                if(ImGui::Button("Delete")) {
+                    objects.erase(objects.begin() + sceneManager.selectedObjectID);
+                    sceneManager.selectedObjectID = -1;
+                }
+                ImGui::SameLine();
+                if(ImGui::Button("Clone")) {
+                    SceneObject clone = sel;
+                    clone.name += "_copy";
+                    clone.position.x += 1.0f;
+                    objects.push_back(clone);
+                }
+            }
+
+            ImGui::Separator();
+            // SPEICHERN BUTTON (Speichert jetzt auch Wasser!)
+            if (ImGui::Button("Save Level")) sceneManager.saveScene("level_01.txt");
+            ImGui::SameLine();
+            if (ImGui::Button("Load Level")) sceneManager.loadScene("level_01.txt");
+
+            ImGui::EndTabItem();
+        }
+
+        // --- TAB 2: GLOBAL SETTINGS ---
+        if (ImGui::BeginTabItem("Settings")) {
+            ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+            if (ImGui::Checkbox("VSync", &m_vsyncEnabled)) setVSync(m_vsyncEnabled);
+
+            ImGui::Checkbox("Limit FPS", &limitFps);
+            if (limitFps) {
+                ImGui::SameLine();
+                if (ImGui::Button("-") && fpsLimit > 30) fpsLimit -= 30;
+                ImGui::SameLine();
+                ImGui::Text("%d", fpsLimit);
+                ImGui::SameLine();
+                if (ImGui::Button("+") && fpsLimit < 240) fpsLimit += 30;
+            }
+
+            ImGui::Separator();
+            ImGui::Text("Visuals");
+            ImGui::Checkbox("Normal Maps", &useNormalMap);
+            ImGui::Checkbox("PBR ARM", &useARMMap);
+            ImGui::Checkbox("Fog", &enableFog);
+            if (enableFog) ImGui::SliderFloat("Density", &fogDensity, 0.0f, 0.1f, "%.3f");
+
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
     }
-
-    ImGui::Checkbox("Limit FPS", &limitFps);
-    if (limitFps) {
-        ImGui::Indent();
-        ImGui::SliderInt("Max FPS", &fpsLimit, 30, 240);
-        ImGui::Unindent();
-    }
-
-    if (ImGui::Button(m_isFullscreen ? "Exit Fullscreen" : "Go Fullscreen")) {
-        toggleFullscreen();
-    }
-
-    ImGui::Separator();
-
-    // --- WASSER CONTROLS ---
-    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Water Simulation");
-    ImGui::SliderFloat("Speed", &waterSpeed, 0.0f, 3.0f);
-    ImGui::SliderFloat("Height", &waterSteepness, 0.0f, 2.0f);
-    ImGui::SliderFloat("Length", &waterWavelength, 0.1f, 5.0f);
-
-    if (ImGui::Button("Reset Water")) {
-        waterSpeed = 1.0f;
-        waterSteepness = 1.0f;
-        waterWavelength = 1.0f;
-    }
-    ImGui::Separator();
-    // -----------------------
-
-    ImGui::Text("Visual Effects");
-    ImGui::Checkbox("Enable Normal Mapping", &useNormalMap);
-    ImGui::Checkbox("Enable PBR Materials (ARM)", &useARMMap);
-
-    ImGui::Checkbox("Enable Fog", &enableFog);
-    if (enableFog) {
-        ImGui::Indent();
-        ImGui::SliderFloat("Intensity", &fogDensity, 0.0f, 0.1f, "%.3f");
-        ImGui::Unindent();
-    }
-
-    ImGui::Separator();
-
-    ImGui::Text("Controls:");
-    const char* modeText = (camera.mode == Camera::FREE) ? "FREE" : "ORBIT";
-    ImGui::TextColored(ImVec4(0, 1, 0, 1), "Current Mode: %s", modeText);
-    ImGui::BulletText("'1': Free Camera");
-    ImGui::BulletText("'2': Orbit Camera");
-    ImGui::BulletText("'F': Toggle Fullscreen");
-    ImGui::BulletText("'ALT': Toggle Mouse");
-
     ImGui::End();
 }
 
@@ -98,33 +141,24 @@ void UIManager::endFrame() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-bool UIManager::isMouseCaptured() const {
-    return ImGui::GetIO().WantCaptureMouse;
-}
-
 void UIManager::toggleFullscreen() {
     m_isFullscreen = !m_isFullscreen;
-
     if (m_isFullscreen) {
         glfwGetWindowPos(m_window, &m_windowedX, &m_windowedY);
         glfwGetWindowSize(m_window, &m_windowedWidth, &m_windowedHeight);
         GLFWmonitor* monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* mode = glfwGetVideoMode(monitor);
         glfwSetWindowMonitor(m_window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-        setVSync(m_vsyncEnabled);
     } else {
         glfwSetWindowMonitor(m_window, nullptr, m_windowedX, m_windowedY, m_windowedWidth, m_windowedHeight, 0);
-        setVSync(m_vsyncEnabled);
     }
+    setVSync(m_vsyncEnabled);
 }
 
 void UIManager::setVSync(bool enabled) {
     glfwSwapInterval(enabled ? 1 : 0);
 }
 
-void UIManager::setResolution(int width, int height) {
-    if (m_isFullscreen) return;
-    glfwSetWindowSize(m_window, width, height);
-    m_windowedWidth = width;
-    m_windowedHeight = height;
+bool UIManager::isMouseCaptured() const {
+    return ImGui::GetIO().WantCaptureMouse;
 }
