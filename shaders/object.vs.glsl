@@ -18,15 +18,29 @@ void main()
     WorldPos = vec3(model * vec4(aPos, 1.0));
     TexCoords = aTexCoords;
 
-    // Normalen Matrix für korrekte Lichtberechnung bei Skalierung
+    // Normalen Matrix
     mat3 normalMatrix = transpose(inverse(mat3(model)));
-    Normal = normalize(normalMatrix * aNormal);
-
-    // TBN Matrix für Normal Mapping
-    vec3 T = normalize(normalMatrix * aTangent);
     vec3 N = normalize(normalMatrix * aNormal);
+    Normal = N;
+
+    // Tangente transformieren
+    vec3 T = normalize(normalMatrix * aTangent);
+
+    // [FIX] Sicherheits-Check: Sind N und T parallel? (Das verursacht die schwarzen Flecken)
+    // Wenn das Skalarprodukt nahe 1 oder -1 ist, zeigen sie in die gleiche Richtung.
+    if (abs(dot(N, T)) > 0.99) {
+        // Wir erfinden eine neue Tangente, die NICHT parallel zu N ist.
+        // Wenn N fast senkrecht nach oben zeigt, nimm X-Achse, sonst Y-Achse.
+        vec3 helpAxis = abs(N.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
+        T = normalize(cross(N, helpAxis));
+    }
+
+    // Gram-Schmidt Re-Orthogonalisierung (macht T perfekt rechtwinklig zu N)
     T = normalize(T - dot(T, N) * N);
+
     vec3 B = cross(N, T);
+
+    // TBN Matrix erstellen
     TBN = mat3(T, B, N);
 
     gl_Position = projection * view * vec4(WorldPos, 1.0);

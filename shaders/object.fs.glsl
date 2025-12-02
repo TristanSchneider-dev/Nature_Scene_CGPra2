@@ -13,18 +13,21 @@ uniform sampler2D mapARM; // R=AO, G=Roughness, B=Metallic
 uniform vec3 viewPos;
 uniform vec3 lightPos;
 uniform vec3 lightColor;
-
 uniform bool useNormalMap;
 uniform bool useARMMap;
 
 void main()
 {
     vec4 albedoSample = texture(mapAlbedo, TexCoords);
+    // [FIX] Discard entfernt, da Steine solide sind!
+    // if(albedoSample.a < 0.5) discard;
+
     vec3 color = albedoSample.rgb;
 
     vec3 norm = normalize(Normal);
     if(useNormalMap) {
         vec3 normalMapValue = texture(mapNormal, TexCoords).rgb;
+        // Normal Map von [0,1] auf [-1,1] bringen
         norm = normalize(normalMapValue * 2.0 - 1.0);
         norm = normalize(TBN * norm);
     }
@@ -38,7 +41,7 @@ void main()
         roughness = arm.g;
     }
 
-    vec3 ambient = 0.1 * color * ao;
+    vec3 ambient = 0.1 * color * ao; // Etwas Ambient Licht ist immer gut
 
     vec3 lightDir = normalize(lightPos - WorldPos);
     float diff = max(dot(norm, lightDir), 0.0);
@@ -53,6 +56,7 @@ void main()
 
     vec3 result = ambient + diffuse + specular;
 
+    // Gamma Correction
     result = pow(result, vec3(1.0/2.2));
     FragColor = vec4(result, 1.0);
 }
