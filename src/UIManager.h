@@ -1,9 +1,13 @@
 #pragma once
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+
 #include "Camera.h"
 #include "SceneManager.h"
 #include "imgui.h"
+#include "ImGuizmo.h" // Stelle sicher, dass ImGuizmo.h im src Ordner liegt
 
 class UIManager {
 public:
@@ -13,14 +17,17 @@ public:
     void beginFrame();
     void endFrame();
 
-    // Wasser-Variablen entfernt, da jetzt in SceneManager
+    // RenderUI braucht jetzt View & Projection Matrix für das 3D-Gizmo
     void renderUI(Camera& camera, SceneManager& sceneManager,
+                  const glm::mat4& view, const glm::mat4& projection,
                   bool& useNormalMap, bool& useARMMap,
                   bool& limitFps, int& fpsLimit,
                   bool& enableFog, float& fogDensity);
 
     void toggleFullscreen();
     void setVSync(bool enabled);
+
+    // Gibt true zurück, wenn Maus über UI oder Gizmo ist (Kamera stoppen)
     bool isMouseCaptured() const;
 
 private:

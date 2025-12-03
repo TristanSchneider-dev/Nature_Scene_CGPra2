@@ -1,9 +1,10 @@
 #include "InputManager.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
+#include <algorithm>
 
-InputManager::InputManager(GLFWwindow* window, Camera& camera, UIManager& ui)
-    : window(window), camera(camera), ui(ui)
+InputManager::InputManager(GLFWwindow* window, Camera& camera, UIManager& ui, SceneManager& sceneManager)
+    : window(window), camera(camera), ui(ui), sceneManager(sceneManager)
 {
     int width, height;
     glfwGetWindowSize(window, &width, &height);
@@ -12,13 +13,10 @@ InputManager::InputManager(GLFWwindow* window, Camera& camera, UIManager& ui)
 
     glfwSetWindowUserPointer(window, this);
 
-    // Callbacks installieren
     glfwSetCursorPosCallback(window, mouseCallbackStatic);
     glfwSetScrollCallback(window, scrollCallbackStatic);
     glfwSetMouseButtonCallback(window, mouseButtonCallbackStatic);
     glfwSetFramebufferSizeCallback(window, resizeCallbackStatic);
-
-    // NEU: Keyboard Callbacks für ImGui Text-Input
     glfwSetKeyCallback(window, keyCallbackStatic);
     glfwSetCharCallback(window, charCallbackStatic);
 
@@ -26,7 +24,6 @@ InputManager::InputManager(GLFWwindow* window, Camera& camera, UIManager& ui)
 }
 
 void InputManager::processInput(float deltaTime) {
-    // Wenn ImGui tippt, keine Game-Inputs verarbeiten
     if (ImGui::GetIO().WantCaptureKeyboard) return;
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -82,6 +79,37 @@ void InputManager::onResize(int width, int height) {
     camera.setViewportSize((float)width, (float)height);
 }
 
+void InputManager::onMouseClick(int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        // UI Blockt Raycast (für Gizmos)
+        if (ui.isMouseCaptured()) return;
+
+        if (menuMode) {
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+
+            int width, height;
+            glfwGetWindowSize(window, &width, &height);
+
+            // Raycast Berechnung
+            float x = (2.0f * (float)xpos) / width - 1.0f;
+            float y = 1.0f - (2.0f * (float)ypos) / height;
+            glm::vec4 ray_clip = glm::vec4(x, y, -1.0, 1.0);
+
+            glm::mat4 proj = glm::perspective(glm::radians(camera.getFov()), (float)width / (float)height, 0.1f, 1000.0f);
+            glm::vec4 ray_eye = glm::inverse(proj) * ray_clip;
+            ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0, 0.0);
+
+            glm::vec3 ray_wor = glm::vec3(glm::inverse(camera.getViewMatrix()) * ray_eye);
+            ray_wor = glm::normalize(ray_wor);
+
+            // Objekt suchen
+            int hitIndex = sceneManager.getClosestObjectFromRay(camera.getPosition(), ray_wor);
+            sceneManager.selectedObjectID = hitIndex;
+        }
+    }
+}
+
 // --- Statische Wrapper ---
 
 void InputManager::mouseCallbackStatic(GLFWwindow* w, double x, double y) {
@@ -103,15 +131,10 @@ void InputManager::resizeCallbackStatic(GLFWwindow* w, int width, int height) {
     if (auto* i = (InputManager*)glfwGetWindowUserPointer(w)) i->onResize(width, height);
 }
 
-// NEU: Implementierung der Key/Char Wrapper
 void InputManager::keyCallbackStatic(GLFWwindow* w, int key, int scancode, int action, int mods) {
     ImGui_ImplGlfw_KeyCallback(w, key, scancode, action, mods);
 }
 
 void InputManager::charCallbackStatic(GLFWwindow* w, unsigned int codepoint) {
     ImGui_ImplGlfw_CharCallback(w, codepoint);
-}
-
-void InputManager::onMouseClick(int button, int action, int mods) {
-    // Placeholder
 }

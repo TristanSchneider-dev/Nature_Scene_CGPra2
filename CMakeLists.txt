@@ -34,6 +34,7 @@ add_executable(TerrainOpenGL
         src/WaterPlane.h
         src/SceneManager.h
         src/SceneManager.cpp
+        src/ImGuizmo.cpp
 )
 
 # Include Directories
