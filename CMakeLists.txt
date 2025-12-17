@@ -35,7 +35,7 @@ add_executable(TerrainOpenGL
         src/SceneManager.h
         src/SceneManager.cpp
         src/ImGuizmo.cpp
-)
+ "src/TreeGenerator.h" "src/TreeGenerator.cpp")
 
 # Include Directories
 target_include_directories(TerrainOpenGL PRIVATE

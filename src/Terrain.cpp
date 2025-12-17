@@ -37,9 +37,9 @@ void Terrain::draw(Shader& shader) {
 
 
 void Terrain::loadTextures() {
-    std::string pGravel = "../assets/textures/gravel_ground_01_2k.gltf/textures/";
-    std::string pPebbles = "../assets/textures/ganges_river_pebbles_2k.gltf/textures/";
-    std::string pRock = "../assets/textures/rocky_terrain_02_2k.gltf/textures/";
+    std::string pGravel = "../../../assets/textures/gravel_ground_01_2k.gltf/textures/";
+    std::string pPebbles = "../../../assets/textures/ganges_river_pebbles_2k.gltf/textures/";
+    std::string pRock = "../../../assets/textures/rocky_terrain_02_2k.gltf/textures/";
 
     tPebbleD   = loadTexture((pPebbles + "ganges_river_pebbles_diff_2k.jpg").c_str());
     tPebbleN   = loadTexture((pPebbles + "ganges_river_pebbles_nor_gl_2k.jpg").c_str());

@@ -18,6 +18,7 @@
 #include "PostProcessor.h"
 #include "WaterPlane.h"
 #include "SceneManager.h"
+#include "TreeGenerator.h"
 
 #include <iostream>
 #include <thread>
@@ -63,7 +64,7 @@ int main()
 
     // SceneManager muss VOR InputManager kommen
     SceneManager sceneManager;
-    sceneManager.loadAssetsFromFolder("../assets/objects");
+    sceneManager.loadAssetsFromFolder("C:/Users/elena/source/repos/Nature_Scene_CGPra2/assets/objects");
     sceneManager.loadScene("level_01.txt");
 
     // InputManager mit SceneManager verbinden
@@ -74,20 +75,53 @@ int main()
     PostProcessor postEffects(fbW, fbH);
 
     // Shader
-    Shader terrainShader("../shaders/terrain.vs.glsl", "../shaders/terrain.fs.glsl");
-    Shader objectShader("../shaders/object.vs.glsl", "../shaders/object.fs.glsl");
-    Shader waterShader("../shaders/water.vs.glsl", "../shaders/water.fs.glsl");
+    Shader terrainShader("../../../shaders/terrain.vs.glsl", "../../../shaders/terrain.fs.glsl");
+    Shader objectShader("../../../shaders/object.vs.glsl", "../../../shaders/object.fs.glsl");
+    Shader waterShader("../../../shaders/water.vs.glsl", "../../../shaders/water.fs.glsl");
 
     // Umwelt
-    Terrain terrain("../assets/objects/landscape.fbx");
+    Terrain terrain("../../../assets/objects/landscape.fbx");
+
+    // --- Baum-Modelle laden ---
+    Model* pineTreeModel = nullptr;
+    Model* oakTreeModel = nullptr;
+    Model* deadTreeModel = nullptr;
+
+    try {
+        deadTreeModel = new Model("../../../assets/objects/dead_tree.glb");
+        std::cout << "[Main] Loaded dead tree model" << std::endl;
+        // Nutze dasselbe Modell für alle Typen als Fallback
+        pineTreeModel = deadTreeModel;
+        oakTreeModel = deadTreeModel;
+    }
+    catch (const std::exception& e) {
+        std::cout << "[Main] ERROR: Could not load tree models: " << e.what() << std::endl;
+        std::cout << "[Main] Trees will not be rendered!" << std::endl;
+    }
+
+    // --- Wasser & Gras ---
     WaterPlane waterPlane(200.0f, 200);
 
-    GrassRenderer grassMain(terrain, 40000, "../assets/textures/grass_blade01.png", 1, GRASS);
+    GrassRenderer grassMain(terrain, 40000, "../../../assets/textures/grass_blade01.png", 1, GRASS);
     grassMain.setColors(glm::vec3(0.34f, 0.40f, 0.05f), glm::vec3(0.27f, 0.31f, 0.07f));
-    GrassRenderer grassVar(terrain, 80000, "../assets/textures/grass_blade02.png", 2, SINGLE_BLADE);
+    GrassRenderer grassVar(terrain, 80000, "../../../assets/textures/grass_blade02.png", 2, SINGLE_BLADE);
     grassVar.setColors(glm::vec3(0.40f, 0.50f, 0.10f), glm::vec3(0.35f, 0.35f, 0.15f));
-    GrassRenderer leaves(terrain, 50000, "../assets/textures/leaf01.png", 3, LEAF);
+    GrassRenderer leaves(terrain, 50000, "../../../assets/textures/leaf01.png", 3, LEAF);
     leaves.setColors(glm::vec3(0.42f, 0.20f, 0.10f), glm::vec3(0.55f, 0.35f, 0.15f));
+
+    // --- TreeGenerator erstellen ---
+    // Versuche Modelle zu laden
+    TreeGenerator* treeGen = nullptr;  // <-- DIES HAT GEFEHLT!
+
+    try {
+        int treeCount = 150;
+        int treeSeed = 42;
+        treeGen = new TreeGenerator(terrain, treeCount, treeSeed);
+        std::cout << "[Main] TreeGenerator initialized with " << treeGen->getTrees().size() << " trees" << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cout << "[Main] ERROR creating TreeGenerator: " << e.what() << std::endl;
+    }
 
     // Shader Init
     terrainShader.use();
@@ -102,6 +136,7 @@ int main()
 
     double lastFrame = 0.0;
 
+    // ========== RENDER LOOP ==========
     while (!glfwWindowShouldClose(window))
     {
         double currentFrame = glfwGetTime();
@@ -138,7 +173,7 @@ int main()
 
         for(int i = 0; i < 9; i++) { glActiveTexture(GL_TEXTURE0 + i); glBindTexture(GL_TEXTURE_2D, 0); }
 
-        // B) Objekte
+        // B) Objekte und Bäume
         objectShader.use();
         objectShader.setBool("useNormalMap", useNormalMap);
         objectShader.setBool("useARMMap", useARMMap);
@@ -147,7 +182,16 @@ int main()
         objectShader.setVec3("viewPos", camera.getPosition());
         objectShader.setVec3("lightPos", sunPos);
         objectShader.setVec3("lightColor", sunColor);
+        // Szenen-Objekte zeichnen
         sceneManager.drawAll(objectShader);
+
+        // Bäume zeichnen (falls TreeGenerator existiert)
+        if (treeGen && (pineTreeModel || oakTreeModel || deadTreeModel)) {
+            treeGen->drawTrees(objectShader,    // FIX: Ohne ->
+                pineTreeModel,
+                oakTreeModel,
+                deadTreeModel);    // FIX: Komma entfernt!
+        }
 
         // C) Wasser
         waterShader.use();
@@ -172,12 +216,13 @@ int main()
         // E) UI
         ui.beginFrame();
         ui.renderUI(camera, sceneManager, view, projection,
-                    useNormalMap, useARMMap, limitFps, fpsLimit, enableFog, fogDensity);
+                    useNormalMap, useARMMap, limitFps, fpsLimit, enableFog, fogDensity, treeGen, &terrain);
         ui.endFrame();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
 
+        // FPS Limiter
         if (limitFps && fpsLimit > 0) {
             double targetFrameTime = 1.0 / static_cast<double>(fpsLimit);
             while (glfwGetTime() < currentFrame + targetFrameTime) {
@@ -185,6 +230,13 @@ int main()
             }
         }
     }
+
+    // ===== CLEANUP =====
+    delete treeGen;
+
+    // Nur löschen, wenn unterschiedliche Pointer
+    if (deadTreeModel) delete deadTreeModel;
+    // pineTreeModel und oakTreeModel zeigen auf dasselbe Objekt!
 
     glfwTerminate();
     return 0;
