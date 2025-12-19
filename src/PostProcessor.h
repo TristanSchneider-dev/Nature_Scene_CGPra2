@@ -13,7 +13,7 @@ public:
     int width, height;
 
     PostProcessor(int w, int h) : width(w), height(h) {
-        shader = new Shader("../../../shaders/post_fog.vs.glsl", "../../../shaders/post_fog.fs.glsl");
+        shader = new Shader("../shaders/post_fog.vs.glsl", "../shaders/post_fog.fs.glsl");
         initQuad();
         initFramebuffer(w, h);
     }

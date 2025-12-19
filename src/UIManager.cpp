@@ -5,9 +5,6 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "TreeGenerator.h" 
-#include "Terrain.h"
-
 UIManager::UIManager(GLFWwindow* window)
     : m_window(window), m_isFullscreen(false), m_vsyncEnabled(true)
 {
@@ -38,10 +35,7 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
                          const glm::mat4& view, const glm::mat4& projection,
                          bool& useNormalMap, bool& useARMMap,
                          bool& limitFps, int& fpsLimit,
-                         bool& enableFog, float& fogDensity,
-                        // NEU: Tree Generator Parameter
-                        TreeGenerator* treeGen,
-                        const Terrain* terrain)
+                         bool& enableFog, float& fogDensity)
 {
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::AllowAxisFlip(false);
@@ -169,177 +163,6 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
                 ImGui::TreePop();
             }
             // -------------------------------------------------
-
-            ImGui::EndTabItem();
-        }
-
-        // --- NEU: VEGETATION TAB ---
-        if (ImGui::BeginTabItem("Vegetation")) {
-
-            ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.3f, 1.0f), "🌳 Tree Generation");
-            ImGui::Separator();
-
-            // Statische Variablen für UI-Steuerung
-            static int maxTrees = 150;
-            static int treeSeed = 42;
-            static int treeStep = 5;
-            static float treeDensityPower = 12.0f;
-            static float minTreeDistance = 2.5f;
-
-            // Info Box
-            ImGui::BeginChild("InfoBox", ImVec2(0, 60), true);
-            if (treeGen) {
-                ImGui::Text("Current Trees: %zu", treeGen->getTrees().size());
-                ImGui::Text("Status: Ready");
-            }
-            else {
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), "TreeGenerator not initialized!");
-            }
-            ImGui::EndChild();
-
-            ImGui::Spacing();
-
-            // --- BAUM-ANZAHL ---
-            ImGui::PushItemWidth(200);
-            ImGui::SliderInt("Max Trees", &maxTrees, 10, 1000);
-            ImGui::PopItemWidth();
-
-            ImGui::SameLine();
-            if (ImGui::Button("?##trees")) {
-                ImGui::OpenPopup("TreeHelp");
-            }
-            if (ImGui::BeginPopup("TreeHelp")) {
-                ImGui::Text("Maximum number of trees to generate");
-                ImGui::Text("Higher values = more trees, slower generation");
-                ImGui::EndPopup();
-            }
-
-            // --- RANDOM SEED ---
-            ImGui::PushItemWidth(150);
-            ImGui::InputInt("Random Seed", &treeSeed);
-            ImGui::PopItemWidth();
-
-            ImGui::SameLine();
-            if (ImGui::Button("Randomize##seed")) {
-                treeSeed = rand() % 10000;
-            }
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.3f, 1.0f), "⚙️ Density Settings");
-            ImGui::Spacing();
-
-            // --- VERTEX STEP ---
-            ImGui::PushItemWidth(250);
-            ImGui::SliderInt("Sample Rate", &treeStep, 1, 20);
-            ImGui::PopItemWidth();
-
-            if (ImGui::IsItemHovered()) {
-                ImGui::BeginTooltip();
-                ImGui::Text("How often to check terrain vertices:");
-                ImGui::Text("  1  = Check every vertex (SLOW, very dense)");
-                ImGui::Text("  5  = Check every 5th vertex (BALANCED)");
-                ImGui::Text("  10 = Check every 10th vertex (FAST, sparse)");
-                ImGui::EndTooltip();
-            }
-
-            // --- DENSITY POWER ---
-            ImGui::PushItemWidth(250);
-            ImGui::SliderFloat("Clustering", &treeDensityPower, 6.0f, 20.0f, "%.1f");
-            ImGui::PopItemWidth();
-
-            if (ImGui::IsItemHovered()) {
-                ImGui::BeginTooltip();
-                ImGui::Text("Controls how trees cluster together:");
-                ImGui::Text("  6-8   = Very dense clusters");
-                ImGui::Text("  12-14 = Natural distribution (RECOMMENDED)");
-                ImGui::Text("  16-20 = Sparse, isolated trees");
-                ImGui::EndTooltip();
-            }
-
-            // --- MIN DISTANCE ---
-            ImGui::PushItemWidth(250);
-            ImGui::SliderFloat("Min Distance", &minTreeDistance, 0.5f, 8.0f, "%.1f units");
-            ImGui::PopItemWidth();
-
-            if (ImGui::IsItemHovered()) {
-                ImGui::BeginTooltip();
-                ImGui::Text("Minimum distance between trees");
-                ImGui::Text("Lower = trees can be closer together");
-                ImGui::Text("Higher = more spread out");
-                ImGui::EndTooltip();
-            }
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            // --- BUTTONS ---
-            if (ImGui::Button("🔄 Regenerate Trees", ImVec2(200, 40))) {
-                if (treeGen && terrain) {
-                    std::cout << "[UI] Regenerating trees with settings:" << std::endl;
-                    std::cout << "  Max Trees: " << maxTrees << std::endl;
-                    std::cout << "  Seed: " << treeSeed << std::endl;
-                    std::cout << "  Sample Rate: " << treeStep << std::endl;
-                    std::cout << "  Clustering: " << treeDensityPower << std::endl;
-                    std::cout << "  Min Distance: " << minTreeDistance << std::endl;
-
-                    // Parameter setzen
-                    treeGen->setParameters(treeStep, treeDensityPower, minTreeDistance);
-
-                    // Neu generieren
-                    treeGen->generateTrees(*terrain, maxTrees);
-                }
-                else {
-                    std::cout << "[UI] ERROR: TreeGenerator or Terrain not available!" << std::endl;
-                }
-            }
-
-            ImGui::SameLine();
-
-            if (ImGui::Button("🗑️ Clear All", ImVec2(120, 40))) {
-                if (treeGen) {
-                    treeGen->clear();
-                    std::cout << "[UI] Cleared all trees" << std::endl;
-                }
-            }
-
-            ImGui::Spacing();
-            ImGui::Separator();
-
-            // --- PRESETS ---
-            ImGui::TextColored(ImVec4(0.7f, 0.5f, 1.0f, 1.0f), "📋 Presets");
-            ImGui::Spacing();
-
-            if (ImGui::Button("Dense Forest", ImVec2(120, 25))) {
-                maxTrees = 300;
-                treeStep = 3;
-                treeDensityPower = 8.0f;
-                minTreeDistance = 1.5f;
-            }
-
-            ImGui::SameLine();
-
-            if (ImGui::Button("Sparse Woods", ImVec2(120, 25))) {
-                maxTrees = 80;
-                treeStep = 8;
-                treeDensityPower = 16.0f;
-                minTreeDistance = 4.0f;
-            }
-
-            ImGui::SameLine();
-
-            if (ImGui::Button("Natural Mix", ImVec2(120, 25))) {
-                maxTrees = 150;
-                treeStep = 5;
-                treeDensityPower = 12.0f;
-                minTreeDistance = 2.5f;
-            }
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f),
-                "💡 Tip: Settings take effect when you click 'Regenerate'");
 
             ImGui::EndTabItem();
         }
