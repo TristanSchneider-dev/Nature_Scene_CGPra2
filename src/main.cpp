@@ -50,50 +50,59 @@ int main()
     if (!window) { glfwTerminate(); return -1; }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-    glfwSwapInterval(0); // VSync aus
+    glfwSwapInterval(0);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_FRAMEBUFFER_SRGB);
 
-    // Subsysteme
     Camera camera(glm::vec3(0.0f, 5.0f, 20.0f));
     UIManager ui(window);
-
-    // SceneManager muss VOR InputManager kommen
     SceneManager sceneManager;
     sceneManager.loadAssetsFromFolder("../assets/objects");
     sceneManager.loadScene("level_01.txt");
 
-    // InputManager mit SceneManager verbinden
     InputManager inputManager(window, camera, ui, sceneManager);
 
     int fbW, fbH;
     glfwGetFramebufferSize(window, &fbW, &fbH);
     PostProcessor postEffects(fbW, fbH);
 
-    // Shader
     Shader terrainShader("../shaders/terrain.vs.glsl", "../shaders/terrain.fs.glsl");
     Shader objectShader("../shaders/object.vs.glsl", "../shaders/object.fs.glsl");
     Shader waterShader("../shaders/water.vs.glsl", "../shaders/water.fs.glsl");
 
-    // Umwelt
-    Terrain terrain("../assets/objects/landscape.fbx");
+    Terrain terrain("../assets/terrain/Landscape.glb");
     WaterPlane waterPlane(200.0f, 200);
 
-    GrassRenderer grassMain(terrain, 40000, "../assets/textures/grass_blade01.png", 1, GRASS);
+    // Gras Logik vorerst deaktiviert
+    /*
+    std::string maskPath = "../assets/grass/Terrain_GrassMask.png";
+    GrassRenderer grassMain(terrain, 40000, "../assets/grass/grass_blade01.png", maskPath, 1, GRASS);
     grassMain.setColors(glm::vec3(0.34f, 0.40f, 0.05f), glm::vec3(0.27f, 0.31f, 0.07f));
-    GrassRenderer grassVar(terrain, 80000, "../assets/textures/grass_blade02.png", 2, SINGLE_BLADE);
-    grassVar.setColors(glm::vec3(0.40f, 0.50f, 0.10f), glm::vec3(0.35f, 0.35f, 0.15f));
-    GrassRenderer leaves(terrain, 50000, "../assets/textures/leaf01.png", 3, LEAF);
-    leaves.setColors(glm::vec3(0.42f, 0.20f, 0.10f), glm::vec3(0.55f, 0.35f, 0.15f));
 
-    // Shader Init
+    GrassRenderer grassVar(terrain, 80000, "../assets/grass/grass_blade02.png", maskPath, 2, SINGLE_BLADE);
+    grassVar.setColors(glm::vec3(0.40f, 0.50f, 0.10f), glm::vec3(0.35f, 0.35f, 0.15f));
+
+    GrassRenderer leaves(terrain, 50000, "../assets/grass/leaf01.png", maskPath, 3, LEAF);
+    leaves.setColors(glm::vec3(0.42f, 0.20f, 0.10f), glm::vec3(0.55f, 0.35f, 0.15f));
+    */
+
     terrainShader.use();
-    terrainShader.setInt("texGravelDiff", 0); terrainShader.setInt("texGravelNor", 1); terrainShader.setInt("texGravelArm", 2);
-    terrainShader.setInt("texPebblesDiff", 3); terrainShader.setInt("texPebblesNor", 4); terrainShader.setInt("texPebblesArm", 5);
-    terrainShader.setInt("texRockDiff", 6); terrainShader.setInt("texRockNor", 7); terrainShader.setInt("texRockArm", 8);
+    // Material 1: Pebbles (Slots 0-2)
+    terrainShader.setInt("pebblesAlbedo", 0);
+    terrainShader.setInt("pebblesNormal", 1);
+    terrainShader.setInt("pebblesARM", 2);
+    // Material 2: Ground (Slots 3-5)
+    terrainShader.setInt("groundAlbedo", 3);
+    terrainShader.setInt("groundNormal", 4);
+    terrainShader.setInt("groundARM", 5);
+    // Material 3: Rock (Slots 6-8)
+    terrainShader.setInt("rockAlbedo", 6);
+    terrainShader.setInt("rockNormal", 7);
+    terrainShader.setInt("rockARM", 8);
+
+    terrainShader.setFloat("tiling", 80.0f);
 
     glm::vec3 sunPos = glm::vec3(50.0f, 100.0f, 50.0f);
     glm::vec3 sunColor = glm::vec3(1.0f);
@@ -126,19 +135,15 @@ int main()
         glm::mat4 projection = glm::perspective(glm::radians(camera.getFov()), aspect, NEAR_PLANE, FAR_PLANE);
         glm::mat4 view = camera.getViewMatrix();
 
-        // A) Terrain
         terrainShader.use();
-        terrainShader.setBool("useNormalMap", useNormalMap);
-        terrainShader.setBool("useARMMap", useARMMap);
+        terrainShader.setBool("useNormalMap", useNormalMap); // Optional, falls shader das noch nutzt
         terrainShader.setMat4("projection", projection);
         terrainShader.setMat4("view", view);
-        terrainShader.setMat4("model", glm::mat4(1.0f));
+        glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(60.0f));
+        terrainShader.setMat4("model", model);
         terrainShader.setVec3("viewPos", camera.getPosition());
         terrain.draw(terrainShader);
 
-        for(int i = 0; i < 9; i++) { glActiveTexture(GL_TEXTURE0 + i); glBindTexture(GL_TEXTURE_2D, 0); }
-
-        // B) Objekte
         objectShader.use();
         objectShader.setBool("useNormalMap", useNormalMap);
         objectShader.setBool("useARMMap", useARMMap);
@@ -149,7 +154,6 @@ int main()
         objectShader.setVec3("lightColor", sunColor);
         sceneManager.drawAll(objectShader);
 
-        // C) Wasser
         waterShader.use();
         waterShader.setFloat("time", (float)glfwGetTime());
         waterShader.setFloat("speedMult", sceneManager.env.waterSpeed);
@@ -160,16 +164,14 @@ int main()
         waterShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, sceneManager.env.waterHeight, 0.0f)));
         waterPlane.draw(waterShader, view, projection, camera.getPosition());
 
-        // D) Vegetation
         glDisable(GL_CULL_FACE);
-        grassMain.draw(view, projection);
-        grassVar.draw(view, projection);
-        leaves.draw(view, projection);
+        // grassMain.draw(view, projection);
+        // grassVar.draw(view, projection);
+        // leaves.draw(view, projection);
         glEnable(GL_CULL_FACE);
 
         postEffects.endRender(NEAR_PLANE, FAR_PLANE, fogColor, enableFog ? fogDensity : 0.0f);
 
-        // E) UI
         ui.beginFrame();
         ui.renderUI(camera, sceneManager, view, projection,
                     useNormalMap, useARMMap, limitFps, fpsLimit, enableFog, fogDensity);

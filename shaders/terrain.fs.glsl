@@ -1,113 +1,101 @@
 #version 330 core
 out vec4 FragColor;
 
-in vec3 FragPos;
-in vec2 TexCoords;
-in vec3 VertexColor;
-in mat3 TBN;
+in VS_OUT {
+    vec3 FragPos;
+    vec2 TexCoords;
+    vec3 Normal;
+    mat3 TBN;
+} fs_in;
+
+// Texturen
+uniform sampler2D pebblesAlbedo;
+uniform sampler2D pebblesNormal;
+uniform sampler2D pebblesARM;
+
+uniform sampler2D groundAlbedo;
+uniform sampler2D groundNormal;
+uniform sampler2D groundARM;
+
+uniform sampler2D rockAlbedo;
+uniform sampler2D rockNormal;
+uniform sampler2D rockARM;
 
 uniform vec3 lightPos;
-uniform vec3 viewPos;
 uniform vec3 lightColor;
-
-// --- Flags für Effekte ---
-uniform bool useNormalMap;
-uniform bool useARMMap;
-
-// Textur Sampler (wie gehabt)
-uniform sampler2D texGravelDiff;
-uniform sampler2D texGravelNor;
-uniform sampler2D texGravelArm;
-
-uniform sampler2D texPebblesDiff;
-uniform sampler2D texPebblesNor;
-uniform sampler2D texPebblesArm;
-
-uniform sampler2D texRockDiff;
-uniform sampler2D texRockNor;
-uniform sampler2D texRockArm;
+uniform vec3 viewPos;
+uniform float tiling;
 
 vec3 getNormalFromMap(sampler2D normalMap, vec2 uv) {
-    vec3 tangentNormal = texture(normalMap, uv).rgb;
-    tangentNormal = tangentNormal * 2.0 - 1.0;
-    return normalize(TBN * tangentNormal);
+    vec3 tangentNormal = texture(normalMap, uv).rgb * 2.0 - 1.0;
+    return normalize(fs_in.TBN * tangentNormal);
 }
 
 void main()
 {
-    float tiling = 20.0;
-    vec2 tiledCoords = TexCoords * tiling;
+    vec2 uv = fs_in.TexCoords * tiling;
 
-    // --- 1. Albedo (Farbe) immer laden ---
-    vec3 dGravel  = texture(texGravelDiff,  tiledCoords).rgb;
-    vec3 dPebbles = texture(texPebblesDiff, tiledCoords).rgb;
-    vec3 dRock    = texture(texRockDiff,    tiledCoords).rgb;
+    // --- 1. Mix-Faktoren ---
+    float slope = dot(normalize(fs_in.Normal), vec3(0.0, 1.0, 0.0));
+    float height = fs_in.FragPos.y;
 
-    vec3 finalAlbedo = dGravel;
-    finalAlbedo = mix(finalAlbedo, dPebbles, VertexColor.r);
-    finalAlbedo = mix(finalAlbedo, dRock,    VertexColor.b);
+    float pebblesWeight = 1.0 - smoothstep(-2.5, -2.0, height);
+    float rockWeight = 1.0 - smoothstep(0.5, 0.8, slope);
+    float groundWeight = 1.0 - max(pebblesWeight, rockWeight);
 
-    // --- 2. Normal Mapping Logik ---
-    vec3 finalNormal;
-    if (useNormalMap) {
-        vec3 nGravel  = getNormalFromMap(texGravelNor,  tiledCoords);
-        vec3 nPebbles = getNormalFromMap(texPebblesNor, tiledCoords);
-        vec3 nRock    = getNormalFromMap(texRockNor,    tiledCoords);
+    float total = pebblesWeight + rockWeight + groundWeight;
+    pebblesWeight /= total; rockWeight /= total; groundWeight /= total;
 
-        finalNormal = nGravel;
-        finalNormal = mix(finalNormal, nPebbles, VertexColor.r);
-        finalNormal = mix(finalNormal, nRock,    VertexColor.b);
-        finalNormal = normalize(finalNormal);
-    } else {
-        // Fallback: Die geometrische Normale nutzen (3. Spalte der TBN Matrix)
-        finalNormal = normalize(TBN[2]);
-    }
+    // --- 2. Sampling ---
+    // HINWEIS: Wir multiplizieren albedo leicht mit einer Farbe, um sie satter zu machen,
+    // oder wir machen es ganz unten global.
+    vec3 colPebbles = texture(pebblesAlbedo, uv).rgb;
+    vec3 colGround  = texture(groundAlbedo, uv).rgb;
+    vec3 colRock    = texture(rockAlbedo, uv).rgb;
 
-    // --- 3. ARM / PBR Logik ---
-    float ao = 1.0;
-    float roughness = 1.0; // Standard: Matt
-    float metallic = 0.0;
+    vec3 nPebbles = getNormalFromMap(pebblesNormal, uv);
+    vec3 nGround  = getNormalFromMap(groundNormal, uv);
+    vec3 nRock    = getNormalFromMap(rockNormal, uv);
 
-    if (useARMMap) {
-        vec3 armGravel  = texture(texGravelArm,  tiledCoords).rgb;
-        vec3 armPebbles = texture(texPebblesArm, tiledCoords).rgb;
-        vec3 armRock    = texture(texRockArm,    tiledCoords).rgb;
+    vec3 armPebbles = texture(pebblesARM, uv).rgb;
+    vec3 armGround  = texture(groundARM, uv).rgb;
+    vec3 armRock    = texture(rockARM, uv).rgb;
 
-        vec3 finalARM = armGravel;
-        finalARM = mix(finalARM, armPebbles, VertexColor.r);
-        finalARM = mix(finalARM, armRock,    VertexColor.b);
+    // --- 3. Blending ---
+    vec3 albedo = colPebbles * pebblesWeight + colGround * groundWeight + colRock * rockWeight;
+    vec3 normal = normalize(nPebbles * pebblesWeight + nGround * groundWeight + nRock * rockWeight);
+    vec3 arm    = armPebbles * pebblesWeight + armGround * groundWeight + armRock * rockWeight;
 
-        ao = finalARM.r;
-        roughness = finalARM.g;
-        metallic = finalARM.b;
-    }
+    float ao = arm.r;
+    float roughness = arm.g;
+    float metallic = arm.b;
 
-    // --- 4. Lighting Calculation ---
-    vec3 viewDir = normalize(viewPos - FragPos);
-    vec3 lightDir = normalize(lightPos - FragPos);
+    // --- 4. Beleuchtung ---
+    vec3 ambient = 0.1 * albedo * ao; // Ambient etwas erhöht für sattere Schatten
+
+    vec3 lightDir = normalize(lightPos - fs_in.FragPos);
+    vec3 viewDir = normalize(viewPos - fs_in.FragPos);
     vec3 halfwayDir = normalize(lightDir + viewDir);
 
-    // Ambient
-    vec3 ambient = vec3(0.1) * finalAlbedo * ao;
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = diff * albedo * lightColor;
 
-    // Diffuse
-    float diff = max(dot(finalNormal, lightDir), 0.0);
-    vec3 diffuse = diff * lightColor * finalAlbedo;
+    // Specular etwas reduzieren (0.5 * ...), damit es nicht so "plastikartig" weiß wirkt
+    float specPower = mix(64.0, 2.0, roughness);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), specPower);
+    vec3 specular = vec3(spec) * metallic * lightColor * 0.5;
 
-    // Specular
-    // Shininess basierend auf Roughness (oder Standardwert wenn ARM aus)
-    float shininess = mix(2.0, 64.0, (1.0 - roughness));
+    vec3 result = ambient + diffuse + specular;
 
-    float spec = 0.0;
-    if(diff > 0.0) {
-        spec = pow(max(dot(finalNormal, halfwayDir), 0.0), shininess);
-    }
+    // --- 5. Post-Processing Tweaks ---
 
-    // Specular Intensity dämpfen (Wet-Look Fix aus vorigem Schritt)
-    float specIntensity = (1.0 - roughness) * 0.3;
+    // Sättigung erhöhen (Saturation Boost)
+    float saturation = 1.3; // Wert > 1.0 macht es bunter, < 1.0 macht es grauer
+    vec3 gray = vec3(dot(result, vec3(0.299, 0.587, 0.114)));
+    result = mix(gray, result, saturation);
 
-    vec3 specularColor = mix(vec3(1.0), finalAlbedo, metallic);
-    vec3 specular = spec * specularColor * lightColor * specIntensity;
+    // WICHTIG: Keine manuelle Gamma-Korrektur hier, da GL_FRAMEBUFFER_SRGB in main.cpp an ist!
+    // result = pow(result, vec3(1.0/2.2)); <--- DAS WAR DER ÜBELTÄTER
 
-    FragColor = vec4(ambient + diffuse + specular, 1.0);
+    FragColor = vec4(result, 1.0);
 }
