@@ -35,6 +35,8 @@ add_executable(TerrainOpenGL
         src/SceneManager.h
         src/SceneManager.cpp
         src/ImGuizmo.cpp
+        src/Skybox.h
+        src/Skybox.cpp
 )
 
 # Include Directories

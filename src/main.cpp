@@ -18,9 +18,11 @@
 #include "PostProcessor.h"
 #include "WaterPlane.h"
 #include "SceneManager.h"
+#include "Skybox.h"
 
 #include <iostream>
 #include <thread>
+#include <vector>
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -72,37 +74,39 @@ int main()
     Shader objectShader("../shaders/object.vs.glsl", "../shaders/object.fs.glsl");
     Shader waterShader("../shaders/water.vs.glsl", "../shaders/water.fs.glsl");
 
-    Terrain terrain("../assets/terrain/Landscape.glb");
+    Terrain terrain("../assets/terrain/landscape.glb");
     WaterPlane waterPlane(200.0f, 200);
 
-    // Gras Logik vorerst deaktiviert
-    /*
-    std::string maskPath = "../assets/grass/Terrain_GrassMask.png";
-    GrassRenderer grassMain(terrain, 40000, "../assets/grass/grass_blade01.png", maskPath, 1, GRASS);
+    std::vector<std::string> faces = {
+        "../assets/skybox/right.png",
+        "../assets/skybox/left.png",
+        "../assets/skybox/top.png",
+        "../assets/skybox/bottom.png",
+        "../assets/skybox/front.png",
+        "../assets/skybox/back.png"
+    };
+    Skybox skybox(faces);
+
+    GrassRenderer grassMain(terrain, 150000, "../assets/grass/grass_blade01.png", 1, GRASS);
     grassMain.setColors(glm::vec3(0.34f, 0.40f, 0.05f), glm::vec3(0.27f, 0.31f, 0.07f));
 
-    GrassRenderer grassVar(terrain, 80000, "../assets/grass/grass_blade02.png", maskPath, 2, SINGLE_BLADE);
+    GrassRenderer grassVar(terrain, 80000, "../assets/grass/grass_blade02.png", 2, SINGLE_BLADE);
     grassVar.setColors(glm::vec3(0.40f, 0.50f, 0.10f), glm::vec3(0.35f, 0.35f, 0.15f));
 
-    GrassRenderer leaves(terrain, 50000, "../assets/grass/leaf01.png", maskPath, 3, LEAF);
+    GrassRenderer leaves(terrain, 40000, "../assets/grass/leaf01.png", 3, LEAF);
     leaves.setColors(glm::vec3(0.42f, 0.20f, 0.10f), glm::vec3(0.55f, 0.35f, 0.15f));
-    */
 
     terrainShader.use();
-    // Material 1: Pebbles (Slots 0-2)
     terrainShader.setInt("pebblesAlbedo", 0);
     terrainShader.setInt("pebblesNormal", 1);
     terrainShader.setInt("pebblesARM", 2);
-    // Material 2: Ground (Slots 3-5)
     terrainShader.setInt("groundAlbedo", 3);
     terrainShader.setInt("groundNormal", 4);
     terrainShader.setInt("groundARM", 5);
-    // Material 3: Rock (Slots 6-8)
     terrainShader.setInt("rockAlbedo", 6);
     terrainShader.setInt("rockNormal", 7);
     terrainShader.setInt("rockARM", 8);
-
-    terrainShader.setFloat("tiling", 80.0f);
+    terrainShader.setFloat("tiling", 60.0f);
 
     glm::vec3 sunPos = glm::vec3(50.0f, 100.0f, 50.0f);
     glm::vec3 sunColor = glm::vec3(1.0f);
@@ -136,7 +140,7 @@ int main()
         glm::mat4 view = camera.getViewMatrix();
 
         terrainShader.use();
-        terrainShader.setBool("useNormalMap", useNormalMap); // Optional, falls shader das noch nutzt
+        terrainShader.setBool("useNormalMap", useNormalMap);
         terrainShader.setMat4("projection", projection);
         terrainShader.setMat4("view", view);
         glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(60.0f));
@@ -154,6 +158,8 @@ int main()
         objectShader.setVec3("lightColor", sunColor);
         sceneManager.drawAll(objectShader);
 
+        skybox.draw(view, projection);
+
         waterShader.use();
         waterShader.setFloat("time", (float)glfwGetTime());
         waterShader.setFloat("speedMult", sceneManager.env.waterSpeed);
@@ -165,9 +171,9 @@ int main()
         waterPlane.draw(waterShader, view, projection, camera.getPosition());
 
         glDisable(GL_CULL_FACE);
-        // grassMain.draw(view, projection);
-        // grassVar.draw(view, projection);
-        // leaves.draw(view, projection);
+        grassMain.draw(view, projection);
+        grassVar.draw(view, projection);
+        leaves.draw(view, projection);
         glEnable(GL_CULL_FACE);
 
         postEffects.endRender(NEAR_PLANE, FAR_PLANE, fogColor, enableFog ? fogDensity : 0.0f);
