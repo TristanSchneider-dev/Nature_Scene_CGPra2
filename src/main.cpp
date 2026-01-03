@@ -36,7 +36,12 @@ bool limitFps = true;
 int fpsLimit = 120;
 bool enableFog = true;
 float fogDensity = 0.025f;
-glm::vec3 fogColor = glm::vec3(0.5f, 0.6f, 0.7f);
+
+// Neuer globaler Status
+bool isDay = true;
+
+glm::vec3 fogColorDay = glm::vec3(0.5f, 0.6f, 0.7f);
+glm::vec3 fogColorNight = glm::vec3(0.05f, 0.05f, 0.1f); // Dunklerer Nebel bei Nacht
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -85,12 +90,21 @@ int main()
     Terrain terrain("../assets/terrain/landscape.glb");
     WaterPlane waterPlane(200.0f, 200);
 
-    std::vector<std::string> faces = {
-        "../assets/skybox/right.png", "../assets/skybox/left.png",
-        "../assets/skybox/top.png",   "../assets/skybox/bottom.png",
-        "../assets/skybox/front.png", "../assets/skybox/back.png"
+    // --- SKYBOX SETUP (TAG & NACHT) ---
+    // Achte darauf, dass die Dateinamen genau stimmen
+    std::vector<std::string> dayFaces = {
+        "../assets/skybox/day_right.png", "../assets/skybox/day_left.png",
+        "../assets/skybox/day_top.png",   "../assets/skybox/day_bottom.png",
+        "../assets/skybox/day_front.png", "../assets/skybox/day_back.png"
     };
-    Skybox skybox(faces);
+
+    std::vector<std::string> nightFaces = {
+        "../assets/skybox/night_right.png", "../assets/skybox/night_left.png",
+        "../assets/skybox/night_top.png",   "../assets/skybox/night_bottom.png",
+        "../assets/skybox/night_front.png", "../assets/skybox/night_back.png"
+    };
+
+    Skybox skybox(dayFaces, nightFaces);
 
     // --- GRAS SYSTEM (GRID + HIGH DENSITY) ---
     GrassSystem grassSystem;
@@ -145,17 +159,12 @@ int main()
     terrainShader.setInt("rockAlbedo", 6);    terrainShader.setInt("rockNormal", 7);    terrainShader.setInt("rockARM", 8);
     terrainShader.setFloat("tiling", 60.0f);
 
-    glm::vec3 sunPos = glm::vec3(50.0f, 100.0f, 50.0f);
-    glm::vec3 sunColor = glm::vec3(1.0f);
+    // Licht-Variablen
+    glm::vec3 sunPosDay = glm::vec3(50.0f, 100.0f, 50.0f);
+    glm::vec3 sunColorDay = glm::vec3(1.0f);
 
-    auto setLight = [&](Shader& s) {
-        s.use();
-        s.setVec3("lightPos", sunPos);
-        s.setVec3("lightColor", sunColor);
-    };
-    setLight(terrainShader);
-    setLight(objectShader);
-    setLight(waterShader);
+    glm::vec3 sunPosNight = glm::vec3(50.0f, 100.0f, -50.0f); // Mond Position
+    glm::vec3 sunColorNight = glm::vec3(0.1f, 0.1f, 0.3f);    // Kühles, dunkles Mondlicht
 
     double lastFrame = 0.0;
 
@@ -165,6 +174,23 @@ int main()
         float deltaTime = static_cast<float>(currentFrame - lastFrame);
         lastFrame = currentFrame;
 
+        // Logik für Tag/Nacht Umschaltung
+        glm::vec3 currentSunPos = isDay ? sunPosDay : sunPosNight;
+        glm::vec3 currentSunColor = isDay ? sunColorDay : sunColorNight;
+        glm::vec3 currentFogColor = isDay ? fogColorDay : fogColorNight;
+
+        // Skybox Status setzen
+        skybox.setDay(isDay);
+
+        auto setLight = [&](Shader& s) {
+            s.use();
+            s.setVec3("lightPos", currentSunPos);
+            s.setVec3("lightColor", currentSunColor);
+        };
+        setLight(terrainShader);
+        setLight(objectShader);
+        setLight(waterShader);
+
         inputManager.processInput(deltaTime);
 
         int currentW, currentH;
@@ -173,7 +199,7 @@ int main()
         postEffects.checkResize(currentW, currentH);
 
         postEffects.beginRender();
-        glClearColor(fogColor.r, fogColor.g, fogColor.b, 1.0f);
+        glClearColor(currentFogColor.r, currentFogColor.g, currentFogColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         float aspect = (float)currentW / (float)currentH;
@@ -197,7 +223,7 @@ int main()
         sceneManager.drawAll(objectShader);
 
         // Gras mit Lichtinfos rendern
-        grassSystem.draw(view, projection, (float)glfwGetTime(), camera.getPosition(), sunPos, sunColor);
+        grassSystem.draw(view, projection, (float)glfwGetTime(), camera.getPosition(), currentSunPos, currentSunColor);
 
         skybox.draw(view, projection);
 
@@ -206,14 +232,16 @@ int main()
         waterShader.setFloat("speedMult", sceneManager.env.waterSpeed);
         waterShader.setFloat("steepnessMult", sceneManager.env.waterSteepness);
         waterShader.setFloat("wavelengthMult", sceneManager.env.waterWavelength);
+        // Bei Nacht Wasser vielleicht etwas dunkler/reflektierender wirken lassen (optional)
         waterShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, sceneManager.env.waterHeight, 0.0f)));
         waterPlane.draw(waterShader, view, projection, camera.getPosition());
 
-        postEffects.endRender(NEAR_PLANE, FAR_PLANE, fogColor, enableFog ? fogDensity : 0.0f);
+        postEffects.endRender(NEAR_PLANE, FAR_PLANE, currentFogColor, enableFog ? fogDensity : 0.0f);
 
         ui.beginFrame();
+        // HINWEIS: Hier habe ich 'isDay' hinzugefügt. Das musst du in UIManager.h/.cpp nachziehen!
         ui.renderUI(camera, sceneManager, view, projection,
-                    useNormalMap, useARMMap, limitFps, fpsLimit, enableFog, fogDensity);
+                    useNormalMap, useARMMap, limitFps, fpsLimit, enableFog, fogDensity, isDay);
         ui.endFrame();
 
         glfwSwapBuffers(window);

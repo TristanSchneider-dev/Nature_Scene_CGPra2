@@ -35,7 +35,7 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
                          const glm::mat4& view, const glm::mat4& projection,
                          bool& useNormalMap, bool& useARMMap,
                          bool& limitFps, int& fpsLimit,
-                         bool& enableFog, float& fogDensity)
+                         bool& enableFog, float& fogDensity, bool& isDay)
 {
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::AllowAxisFlip(false);
@@ -152,18 +152,6 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
             if (ImGui::Button("Save Level")) sceneManager.saveScene("level_01.txt");
             ImGui::SameLine();
             if (ImGui::Button("Load Level")) sceneManager.loadScene("level_01.txt");
-
-            // --- HIER WURDE DIE WASSER-STEUERUNG EINGEFÜGT ---
-            ImGui::Separator();
-            if(ImGui::TreeNode("Environment Settings")) {
-                ImGui::SliderFloat("Water Height", &sceneManager.env.waterHeight, -10.0f, 5.0f);
-                ImGui::SliderFloat("Water Speed", &sceneManager.env.waterSpeed, 0.0f, 2.0f);
-                ImGui::SliderFloat("Wave Height", &sceneManager.env.waterSteepness, 0.0f, 1.0f);
-                ImGui::SliderFloat("Wave Length", &sceneManager.env.waterWavelength, 0.1f, 5.0f);
-                ImGui::TreePop();
-            }
-            // -------------------------------------------------
-
             ImGui::EndTabItem();
         }
 
@@ -178,6 +166,20 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
             ImGui::Checkbox("Fog", &enableFog);
             if (enableFog) ImGui::SliderFloat("Density", &fogDensity, 0.0f, 0.1f, "%.4f");
 
+            ImGui::Separator();
+            ImGui::Text("Environment");
+            if (ImGui::Checkbox("Day / Night Mode", &isDay)) {
+                // Logik passiert automatisch in main loop, da isDay referenziert ist
+            }
+
+            ImGui::Separator();
+            if(ImGui::TreeNode("Environment Settings")) {
+                ImGui::SliderFloat("Water Height", &sceneManager.env.waterHeight, -10.0f, 5.0f);
+                ImGui::SliderFloat("Water Speed", &sceneManager.env.waterSpeed, 0.0f, 2.0f);
+                ImGui::SliderFloat("Wave Height", &sceneManager.env.waterSteepness, 0.0f, 1.0f);
+                ImGui::SliderFloat("Wave Length", &sceneManager.env.waterWavelength, 0.1f, 5.0f);
+                ImGui::TreePop();
+            }
             ImGui::EndTabItem();
         }
 

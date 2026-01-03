@@ -3,11 +3,14 @@
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
 
-Skybox::Skybox(const std::vector<std::string>& faces) {
+Skybox::Skybox(const std::vector<std::string>& dayFaces, const std::vector<std::string>& nightFaces) {
     skyboxShader = new Shader("../shaders/skybox.vs.glsl", "../shaders/skybox.fs.glsl");
     setupMesh();
-    cubemapTexture = loadCubemap(faces);
-    
+
+    // Beide Cubemaps laden
+    dayCubemapTexture = loadCubemap(dayFaces);
+    nightCubemapTexture = loadCubemap(nightFaces);
+
     skyboxShader->use();
     skyboxShader->setInt("skybox", 0);
 }
@@ -15,23 +18,38 @@ Skybox::Skybox(const std::vector<std::string>& faces) {
 Skybox::~Skybox() {
     glDeleteVertexArrays(1, &skyboxVAO);
     glDeleteBuffers(1, &skyboxVBO);
-    glDeleteTextures(1, &cubemapTexture);
+
+    // Beide Texturen löschen
+    glDeleteTextures(1, &dayCubemapTexture);
+    glDeleteTextures(1, &nightCubemapTexture);
+
     delete skyboxShader;
+}
+
+void Skybox::setDay(bool day) {
+    this->isDay = day;
 }
 
 void Skybox::draw(const glm::mat4& view, const glm::mat4& projection) {
     glDepthFunc(GL_LEQUAL); // Wichtig: Skybox wird nur gezeichnet, wenn Depth <= 1.0
-    
+
     skyboxShader->use();
-    // Translation aus der View-Matrix entfernen, damit die Skybox "unendlich" weit weg wirkt
+    // Translation aus der View-Matrix entfernen
     glm::mat4 viewNoTrans = glm::mat4(glm::mat3(view));
-    
+
     skyboxShader->setMat4("view", viewNoTrans);
     skyboxShader->setMat4("projection", projection);
 
     glBindVertexArray(skyboxVAO);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+
+    // Wähle die Textur basierend auf dem Status
+    if (isDay) {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, dayCubemapTexture);
+    } else {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, nightCubemapTexture);
+    }
+
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
     
