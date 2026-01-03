@@ -173,7 +173,7 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
             }
 
             ImGui::Separator();
-            if(ImGui::TreeNode("Environment Settings")) {
+            if(ImGui::TreeNode("Water Settings")) {
                 ImGui::SliderFloat("Water Height", &sceneManager.env.waterHeight, -10.0f, 5.0f);
                 ImGui::SliderFloat("Water Speed", &sceneManager.env.waterSpeed, 0.0f, 2.0f);
                 ImGui::SliderFloat("Wave Height", &sceneManager.env.waterSteepness, 0.0f, 1.0f);

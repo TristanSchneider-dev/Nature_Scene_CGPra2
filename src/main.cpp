@@ -71,6 +71,7 @@ int main()
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 
+
     Camera camera(glm::vec3(0.0f, 5.0f, 20.0f));
     UIManager ui(window);
     SceneManager sceneManager;
@@ -88,7 +89,7 @@ int main()
     Shader waterShader("../shaders/water.vs.glsl", "../shaders/water.fs.glsl");
 
     Terrain terrain("../assets/terrain/landscape.glb");
-    WaterPlane waterPlane(200.0f, 200);
+    WaterPlane waterPlane(800.0f, 800);
 
     // --- SKYBOX SETUP (TAG & NACHT) ---
     // Achte darauf, dass die Dateinamen genau stimmen
@@ -100,7 +101,7 @@ int main()
 
     std::vector<std::string> nightFaces = {
         "../assets/skybox/night_right.png", "../assets/skybox/night_left.png",
-        "../assets/skybox/night_top.png",   "../assets/skybox/night_bottom.png",
+        "../assets/skybox/night_top.png","../assets/skybox/night_bottom.png",
         "../assets/skybox/night_front.png", "../assets/skybox/night_back.png"
     };
 
@@ -179,7 +180,10 @@ int main()
         glm::vec3 currentSunColor = isDay ? sunColorDay : sunColorNight;
         glm::vec3 currentFogColor = isDay ? fogColorDay : fogColorNight;
 
-        // Skybox Status setzen
+        // Berechne Night-Factor für den Shader (0.0 = Tag, 1.0 = Nacht)
+        float currentNightFactor = isDay ? 0.0f : 1.0f;
+
+        // Skybox Status setzen (Textureswap)
         skybox.setDay(isDay);
 
         auto setLight = [&](Shader& s) {
@@ -225,6 +229,9 @@ int main()
         // Gras mit Lichtinfos rendern
         grassSystem.draw(view, projection, (float)glfwGetTime(), camera.getPosition(), currentSunPos, currentSunColor);
 
+        skybox.setNightFactor(currentNightFactor);
+
+        // Dann zeichnen
         skybox.draw(view, projection);
 
         waterShader.use();
@@ -233,6 +240,7 @@ int main()
         waterShader.setFloat("steepnessMult", sceneManager.env.waterSteepness);
         waterShader.setFloat("wavelengthMult", sceneManager.env.waterWavelength);
         // Bei Nacht Wasser vielleicht etwas dunkler/reflektierender wirken lassen (optional)
+        waterShader.setVec3("fogColor", currentFogColor);
         waterShader.setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, sceneManager.env.waterHeight, 0.0f)));
         waterPlane.draw(waterShader, view, projection, camera.getPosition());
 

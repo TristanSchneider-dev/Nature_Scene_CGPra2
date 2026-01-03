@@ -30,6 +30,13 @@ void Skybox::setDay(bool day) {
     this->isDay = day;
 }
 
+void Skybox::setNightFactor(float factor)
+{
+    // Da skyboxShader ein Pointer ist, nutzen wir "->"
+    skyboxShader->use();
+    skyboxShader->setFloat("nightFactor", factor);
+}
+
 void Skybox::draw(const glm::mat4& view, const glm::mat4& projection) {
     glDepthFunc(GL_LEQUAL); // Wichtig: Skybox wird nur gezeichnet, wenn Depth <= 1.0
 
@@ -121,7 +128,7 @@ unsigned int Skybox::loadCubemap(const std::vector<std::string>& faces) {
         unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
         if (data) {
             GLenum format = (nrChannels == 4) ? GL_RGBA : GL_RGB;
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
                          0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
             stbi_image_free(data);
         } else {

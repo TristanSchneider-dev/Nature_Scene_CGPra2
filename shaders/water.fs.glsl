@@ -4,12 +4,14 @@ out vec4 FragColor;
 in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoords;
-in float WaveHeight; // NEU: Input vom Vertex Shader
+in float WaveHeight;
 
 uniform vec3 viewPos;
 uniform vec3 lightPos;
 uniform vec3 lightColor;
 uniform float time;
+// NEU: Nebelfarbe muss von außen kommen, damit sie zur Nacht passt!
+uniform vec3 fogColor;
 
 // Hash & Noise für die kleinen Details
 float hash(vec2 p) {
@@ -41,18 +43,22 @@ void main() {
     float n1 = noise(noiseCoord1);
     float n2 = noise(noiseCoord2);
     vec3 noisePerturbation = vec3(n1 - 0.5, 0.0, n2 - 0.5);
-    float noiseStrength = 0.3; // Etwas reduziert für ruhigeres Wasser
+
+    float noiseStrength = 0.3;
     vec3 finalNormal = normalize(Normal + noisePerturbation * noiseStrength);
 
     // --- Beleuchtung ---
-    // Ambient
-    vec3 ambient = 0.1 * vec3(0.05, 0.1, 0.15);
+
+    // FIX 1: Ambient muss auf Licht reagieren (zumindest etwas), sonst leuchtet es grau
+    // Wir nehmen die Helligkeit des Lichts oder multiplizieren direkt
+    vec3 ambientBase = vec3(0.05, 0.1, 0.15);
+    // Wir mischen es etwas mit lColor, damit es nachts blau wird
+    vec3 ambient = 0.1 * ambientBase * (lColor + 0.2);
 
     // Diffuse
     vec3 norm = finalNormal;
     vec3 lightDir = normalize(lPos - FragPos);
     float diff = max(dot(norm, lightDir), 0.0);
-    // Dunkle Basis-Farbe (Deep Ocean Blue)
     vec3 baseColor = vec3(0.05, 0.1, 0.2);
     vec3 diffuse = diff * lColor * baseColor;
 
@@ -62,16 +68,17 @@ void main() {
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
     vec3 specular = spec * lColor * 1.5;
 
-    // Fresnel
+    // Fresnel / Rim
     float fresnel = pow(1.0 - max(dot(viewDir, norm), 0.0), 4.0);
-    vec3 rimColor = vec3(0.5, 0.7, 0.8) * fresnel;
+    // FIX 2: Rim-Color mit lColor multiplizieren!
+    vec3 rimColor = vec3(0.5, 0.7, 0.8) * fresnel * lColor;
 
-    // --- NEU: Schaum (Foam) Berechnung ---
-    // Wir prüfen, ob die Wellenhöhe über einem gewissen Wert liegt.
-    // Die Werte 0.4 und 0.6 steuern, ab welcher Höhe der Schaum beginnt und wie hart der Übergang ist.
-    // noise(FragPos.xz * 3.0) fügt dem Schaumrand etwas Unregelmäßigkeit hinzu.
+    // --- Schaum (Foam) Berechnung ---
     float foamMask = smoothstep(0.45, 0.7, WaveHeight + noise(FragPos.xz * 2.0) * 0.1);
-    vec3 foamColor = vec3(0.95); // Fast Weiß
+
+    // FIX 3: Schaum darf nachts nicht weiß leuchten -> mit lColor tönen
+    vec3 foamBase = vec3(0.95);
+    vec3 foamColor = foamBase * lColor;
 
     // Zusammenbauen
     vec3 waterResult = ambient + diffuse + specular + (rimColor * 0.5);
@@ -80,10 +87,10 @@ void main() {
     vec3 finalResult = mix(waterResult, foamColor, foamMask);
 
     // Fog
-    float distance = length(viewPos - FragPos);
-    float fogFactor = exp(-0.025 * distance);
+    float dist = length(viewPos - FragPos);
+    float fogFactor = exp(-0.025 * dist);
     fogFactor = clamp(fogFactor, 0.0, 1.0);
-    vec3 fogColor = vec3(0.5, 0.6, 0.7);
 
+    // FIX 4: Nutze die Uniform statt hardcoded Grau
     FragColor = vec4(mix(fogColor, finalResult, fogFactor), 1.0);
 }
