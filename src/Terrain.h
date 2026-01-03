@@ -17,26 +17,23 @@ public:
 
     void draw(Shader& shader);
 
-    // --- WIEDER EINGEFÜGT: Getter für Geometrie-Daten ---
+    // Diese Getter braucht dein GrassSystem in der main.cpp!
     const std::vector<float>& getVertices() const { return m_vertices; }
-
-    // Optional: Speicher freigeben, wenn nicht mehr benötigt
-    void freeClientMemory() {
-        m_vertices.clear();
-        m_vertices.shrink_to_fit();
-    }
-    // ----------------------------------------------------
+    const std::vector<unsigned int>& getIndices() const { return m_indices; }
 
 private:
-    unsigned int VAO, VBO, EBO, indexCount;
+    unsigned int VAO = 0, VBO = 0, EBO = 0, indexCount = 0;
 
-    // Unsere 3 Material-Sets
+    // Materialien
     TerrainMaterial matPebbles;
     TerrainMaterial matGround;
     TerrainMaterial matRock;
 
+    // CPU-Speicher der Geometrie (Wichtig für Physics/Gras)
     std::vector<float> m_vertices;
+    std::vector<unsigned int> m_indices;
 
+    // Interne Helper
     void loadModel(const std::string& path);
     void loadMaterials();
     unsigned int loadTexture(const char* path);

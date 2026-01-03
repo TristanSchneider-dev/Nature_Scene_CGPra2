@@ -49,3 +49,5 @@ Desktop.ini
 # Wir ignorieren NICHT libs/glad, damit das Repo direkt funktioniert.
 # Falls du glad aber nicht im Repo haben willst, entferne das # vor der nächsten Zeile:
 # libs/glad/
+
+assets/Forest_Kit_AssetQuest/

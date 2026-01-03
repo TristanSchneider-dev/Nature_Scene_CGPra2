@@ -17,22 +17,18 @@ Terrain::~Terrain() {
 }
 
 void Terrain::loadMaterials() {
-    // Pfade basierend auf deinem Screenshot zusammengebaut
     std::string root = "../assets/terrain/";
 
-    // 1. GANGES RIVER PEBBLES (Für tiefe Stellen/Wasser)
     std::string p1 = root + "ganges_river_pebbles_2k.gltf/textures/";
     matPebbles.albedo = loadTexture((p1 + "ganges_river_pebbles_diff_2k.jpg").c_str());
     matPebbles.normal = loadTexture((p1 + "ganges_river_pebbles_nor_gl_2k.jpg").c_str());
     matPebbles.arm    = loadTexture((p1 + "ganges_river_pebbles_arm_2k.jpg").c_str());
 
-    // 2. ROCKY TERRAIN 02 (Für normalen Boden)
     std::string p2 = root + "rocky_terrain_02_2k.gltf/textures/";
     matGround.albedo = loadTexture((p2 + "rocky_terrain_02_diff_2k.jpg").c_str());
     matGround.normal = loadTexture((p2 + "rocky_terrain_02_nor_gl_2k.jpg").c_str());
     matGround.arm    = loadTexture((p2 + "rocky_terrain_02_arm_2k.jpg").c_str());
 
-    // 3. ROCKY TERRAIN (Für steile Hänge/Felsen)
     std::string p3 = root + "rocky_terrain_2k.gltf/textures/";
     matRock.albedo = loadTexture((p3 + "rocky_terrain_diff_2k.jpg").c_str());
     matRock.normal = loadTexture((p3 + "rocky_terrain_nor_gl_2k.jpg").c_str());
@@ -40,18 +36,14 @@ void Terrain::loadMaterials() {
 }
 
 void Terrain::draw(Shader& shader) {
-    // Wir belegen Texture Slots 0 bis 8
-    // PEBBLES
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, matPebbles.albedo);
     glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, matPebbles.normal);
     glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, matPebbles.arm);
 
-    // GROUND
     glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D, matGround.albedo);
     glActiveTexture(GL_TEXTURE4); glBindTexture(GL_TEXTURE_2D, matGround.normal);
     glActiveTexture(GL_TEXTURE5); glBindTexture(GL_TEXTURE_2D, matGround.arm);
 
-    // ROCK
     glActiveTexture(GL_TEXTURE6); glBindTexture(GL_TEXTURE_2D, matRock.albedo);
     glActiveTexture(GL_TEXTURE7); glBindTexture(GL_TEXTURE_2D, matRock.normal);
     glActiveTexture(GL_TEXTURE8); glBindTexture(GL_TEXTURE_2D, matRock.arm);
@@ -60,12 +52,9 @@ void Terrain::draw(Shader& shader) {
     glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
-    // Reset Active Texture
     glActiveTexture(GL_TEXTURE0);
 }
 
-// loadTexture und loadModel bleiben identisch zum vorherigen Code (bitte den vorherigen Code dafür nutzen)
-// ... (hier Copy-Paste von loadTexture und loadModel aus der vorherigen Antwort einfügen)
 unsigned int Terrain::loadTexture(const char* path) {
     unsigned int textureID;
     glGenTextures(1, &textureID);
@@ -76,7 +65,7 @@ unsigned int Terrain::loadTexture(const char* path) {
         glBindTexture(GL_TEXTURE_2D, textureID);
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // Wichtig fürs Kacheln!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -90,7 +79,6 @@ unsigned int Terrain::loadTexture(const char* path) {
 
 void Terrain::loadModel(const std::string& path) {
     Assimp::Importer importer;
-    // WICHTIG: aiProcess_CalcTangentSpace für Normal Mapping
     const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace);
     if(!scene || !scene->mRootNode) { std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl; return; }
 
@@ -127,6 +115,10 @@ void Terrain::loadModel(const std::string& path) {
     }
     indexCount = indices.size();
 
+    // WICHTIG: Daten persistent speichern für GrassSystem
+    m_vertices = data;
+    m_indices = indices;
+
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
@@ -136,7 +128,7 @@ void Terrain::loadModel(const std::string& path) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
 
-    int stride = 11 * sizeof(float); // 3 pos + 3 norm + 2 uv + 3 tangent
+    int stride = 11 * sizeof(float);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0); glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float))); glEnableVertexAttribArray(1);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float))); glEnableVertexAttribArray(2);
