@@ -84,35 +84,32 @@ int main()
     grassSystem.initTerrainData(terrain.getVertices(), terrain.getIndices(), 60.0f);
     std::string gp = "../assets/grass/"; float sp = 190.0f;
 
-    /*
     for (int i = 1; i <= 6; i++) grassSystem.addGrassType(gp + "grass_" + (i<10?"0":"") + std::to_string(i) + ".png", 800000, sp, 0.15f, false);
     for (int i = 7; i <= 10; i++) grassSystem.addGrassType(gp + "grass_" + (i<10?"0":"") + std::to_string(i) + ".png", 8000, sp, 0.2f, false);
     for (int i = 11; i <= 12; i++) grassSystem.addGrassType(gp + "grass_" + std::to_string(i) + ".png", 1000, sp, 0.2f, false);
     grassSystem.addGrassType(gp + "grass_13.png", 8000, sp, 0.2f, false);
     grassSystem.addGrassType(gp + "leaf_01.png", 1000, sp, 0.5f, false);
     for (int i = 2; i <= 10; i++) grassSystem.addGrassType(gp + "leaf_" + (i<10?"0":"") + std::to_string(i) + ".png", (i<=5?15000:10000), sp, 0.15f, true);
-    */
 
     // --- FOREST SETUP ---
     ForestSystem forest;
     forest.initTerrainData(terrain.getVertices(), terrain.getIndices(), 60.0f);
 
-    // Pfad anpassen (Wichtig: Prüfe, ob der Ordner wirklich so heißt!)
     std::string fp = "../assets/forrest/";
 
-    // ERLÄUTERUNG PARAMETER:
-    // addObject(Dateipfad, Anzahl, GRÖSSE/SCALE, Mindestabstand);
+    // Wir fluten die Map jetzt mit kleineren Objekten für mehr Dichte und Vielfalt:
 
-    // 1. Bäume: Teste mal 0.1f bis 0.2f (statt 1.5f)
-    forest.addObject(fp + "Birch_Tree_1.glb", 50, 0.015f, 5.0f);
-    forest.addObject(fp + "Birch_Tree_2.glb", 50, 0.015f, 5.0f);
+    // 80 Gruppen Birken (Birkenwald)
+    forest.addBiomeCluster("Birch", 80, fp);
 
-    // 2. Pilze: Teste 0.5f oder 1.0f (statt 20.0f - das war der Fehler!)
-    forest.addObject(fp + "Bay_Bolete_Group_1.glb", 100, 0.001f, 1.0f);
-    forest.addObject(fp + "Fly_Agaric_Basic.glb", 80, 0.001f, 1.0f);
+    // 80 Gruppen Nadelwald (Kiefer + Tanne)
+    forest.addBiomeCluster("Pine", 80, fp);
 
-    // 3. Büsche: Teste 0.2f (statt 1.0f)
-    forest.addObject(fp + "Blackberry_Bush_1a.glb", 100, 0.002f, 2.0f);
+    // 60 Gruppen Eichenwald
+    forest.addBiomeCluster("Oak", 60, fp);
+
+    // 100 Gruppen Gestrüpp (verbindet die Wälder)
+    forest.addBiomeCluster("Scrub", 100, fp);
 
     // Shader config
     terrainShader.use();
