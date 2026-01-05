@@ -13,6 +13,7 @@ uniform sampler2D mapARM; // R=AO, G=Roughness, B=Metallic
 uniform vec3 viewPos;
 uniform vec3 lightPos;
 uniform vec3 lightColor;
+
 uniform bool useNormalMap;
 uniform bool useARMMap;
 
@@ -20,9 +21,12 @@ void main()
 {
     vec4 albedoSample = texture(mapAlbedo, TexCoords);
 
-    // [FIX 1] Input Gamma Korrektur:
-    // Wir wandeln die sRGB Textur manuell in Linear Space um, damit das Licht korrekt berechnet wird.
-    // Das macht die Textur im "Rechenraum" dunkler und realistischer.
+    // [FIX] Transparenz-Cutoff:
+    // Wenn der Pixel fast durchsichtig ist (z.B. der Rand vom Blatt), wird er nicht gezeichnet.
+    if(albedoSample.a < 0.1)
+        discard;
+
+    // Input Gamma Korrektur (sRGB zu Linear)
     vec3 color = pow(albedoSample.rgb, vec3(2.2));
 
     vec3 norm = normalize(Normal);
@@ -33,36 +37,34 @@ void main()
     }
 
     float ao = 1.0;
-    float roughness = 0.8; // Standard etwas rauer, falls keine Map da ist
+    float roughness = 0.8; // Standard etwas rauer
     float metallic = 0.0;
 
     if(useARMMap) {
         vec3 arm = texture(mapARM, TexCoords).rgb;
         ao = arm.r;
         roughness = arm.g;
-        metallic = arm.b; // Metallic auslesen!
+        metallic = arm.b;
     }
 
-    // [FIX 2] Ambient verringern
+    // Ambient
     vec3 ambient = 0.03 * color * ao;
 
+    // Diffuse
     vec3 lightDir = normalize(lightPos - WorldPos);
-    float diff = max(dot(norm, lightDir), 0.0);
+    float diff = abs(dot(norm, lightDir));
+    diff = max(diff, 0.2);
     vec3 diffuse = diff * lightColor * color;
 
+    // Specular
     vec3 viewDir = normalize(viewPos - WorldPos);
     vec3 halfwayDir = normalize(lightDir + viewDir);
-
     float specPower = (1.0 - roughness) * 64.0;
     float spec = pow(max(dot(norm, halfwayDir), 0.0), max(specPower, 0.001));
-
-    // Einfache Specular Berechnung (Nicht physikalisch perfekt, aber okay für jetzt)
     vec3 specular = vec3(0.5) * spec * (1.0 - roughness);
 
     vec3 result = ambient + diffuse + specular;
 
-    // [FIX 3] Output Gamma entfernen!
-    // Da glEnable(GL_FRAMEBUFFER_SRGB) an ist, macht OpenGL das automatisch.
-    // Wir geben hier das LINEARE Ergebnis aus.
+    // Output (Linear, da GL_FRAMEBUFFER_SRGB aktiviert ist)
     FragColor = vec4(result, 1.0);
 }

@@ -37,6 +37,7 @@ add_executable(TerrainOpenGL
         src/Skybox.cpp
         src/GrassSystem.h
         src/GrassSystem.cpp
+        src/ForestSystem.cpp
 )
 
 # Include Directories
