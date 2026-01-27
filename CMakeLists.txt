@@ -8,7 +8,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-find_package(stb CONFIG REQUIRED)
+find_package(stb REQUIRED)
 
 add_executable(TerrainOpenGL
         src/main.cpp
@@ -34,11 +34,12 @@ add_executable(TerrainOpenGL
         src/GrassSystem.h
         src/GrassSystem.cpp
         src/ForestSystem.cpp
-)
+ "src/ShadowMapper.h")
 
 target_include_directories(TerrainOpenGL PRIVATE
         src
         libs/glad/include
+        ${STB_INCLUDE_DIR}
 )
 
 target_link_libraries(TerrainOpenGL PRIVATE
@@ -47,8 +48,4 @@ target_link_libraries(TerrainOpenGL PRIVATE
         assimp::assimp
         OpenGL::GL
         imgui::imgui
-        # Diese beiden Targets sind entscheidend für die Bindings:
-        imgui::imgui_backend_glfw
-        imgui::imgui_backend_opengl3
-        stb::stb
 )
