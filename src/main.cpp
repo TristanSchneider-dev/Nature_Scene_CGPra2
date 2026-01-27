@@ -146,7 +146,7 @@ int main()
         skybox.setNightFactor(isDay ? 0.0f : 1.0f);
 
         // Calculate light direction for shadows
-        glm::vec3 lightDir = glm::normalize(curSunPos);
+        glm::vec3 lightDir = glm::normalize(-curSunPos); // NEGATIV für korrekte Richtung
         glm::vec3 sceneCenter(0.0f, 10.0f, 0.0f); // Center of your scene
         float sceneRadius = 150.0f; // Adjust based on your scene size
 
