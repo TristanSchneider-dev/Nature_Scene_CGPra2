@@ -42,7 +42,10 @@ public:
     void addBiomeCluster(const std::string& type, int groups, const std::string& assetPath);
 
     // Zeichnet alle Bäume (nutzt Instancing für Performance)
-    void draw(Shader& shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& viewPos);
+    void draw(Shader& shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& viewPos, const glm::mat4& lightSpaceMatrix);
+    
+    // Shadow rendering method
+    void drawShadows(Shader& shadowShader, const glm::mat4& lightSpaceMatrix);
 
 private:
     // Lädt die Matrizen in den VBO (wird automatisch von draw aufgerufen)

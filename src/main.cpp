@@ -18,7 +18,8 @@
 #include "SceneManager.h"
 #include "Skybox.h"
 #include "GrassSystem.h"
-#include "ForestSystem.h" // Neu
+#include "ForestSystem.h" 
+#include "ShadowMapper.h" // NEW
 
 #include <iostream>
 #include <vector>
@@ -29,6 +30,7 @@ const unsigned int SCR_WIDTH = 1280, SCR_HEIGHT = 720;
 const float NEAR_PLANE = 0.1f, FAR_PLANE = 1000.0f;
 
 bool useNormalMap = true, useARMMap = true, limitFps = true, enableFog = true, isDay = true;
+bool useShadows = true; // NEW: Shadow toggle
 int fpsLimit = 120;
 float fogDensity = 0.025f;
 
@@ -53,6 +55,8 @@ int main()
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
     glEnable(GL_DEPTH_TEST); glEnable(GL_FRAMEBUFFER_SRGB);
     glEnable(GL_MULTISAMPLE); glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+    glEnable(GL_CULL_FACE); // Enable face culling for better performance
+    glCullFace(GL_BACK);
 
     Camera camera(glm::vec3(0.0f, 5.0f, 20.0f));
     UIManager ui(window);
@@ -62,27 +66,30 @@ int main()
     int fbW, fbH; glfwGetFramebufferSize(window, &fbW, &fbH);
     PostProcessor postEffects(fbW, fbH);
 
-    Shader terrainShader("../shaders/terrain.vs.glsl", "../shaders/terrain.fs.glsl");
-    Shader objectShader("../shaders/object.vs.glsl", "../shaders/object.fs.glsl");
-    Shader waterShader("../shaders/water.vs.glsl", "../shaders/water.fs.glsl");
+    // Initialize shadow mapper (4096x4096 shadow map)
+    ShadowMapper shadowMapper(4096);
 
-    Terrain terrain("../assets/terrain/landscape.glb");
+    Shader terrainShader("../../../shaders/terrain.vs.glsl", "../../../shaders/terrain.fs.glsl");
+    Shader objectShader("../../../shaders/object.vs.glsl", "../../../shaders/object.fs.glsl");
+    Shader waterShader("../../../shaders/water.vs.glsl", "../../../shaders/water.fs.glsl");
+
+    Terrain terrain("../../../assets/terrain/landscape.glb");
     WaterPlane waterPlane(800.0f, 800);
 
     std::vector<std::string> dayFaces = {
-        "../assets/skybox/day_right.png", "../assets/skybox/day_left.png", "../assets/skybox/day_top.png",
-        "../assets/skybox/day_bottom.png", "../assets/skybox/day_front.png", "../assets/skybox/day_back.png"
+        "../../../assets/skybox/day_right.png", "../../../assets/skybox/day_left.png", "../../../assets/skybox/day_top.png",
+        "../../../assets/skybox/day_bottom.png", "../../../assets/skybox/day_front.png", "../../../assets/skybox/day_back.png"
     };
     std::vector<std::string> nightFaces = {
-        "../assets/skybox/night_right.png", "../assets/skybox/night_left.png", "../assets/skybox/night_top.png",
-        "../assets/skybox/night_bottom.png", "../assets/skybox/night_front.png", "../assets/skybox/night_back.png"
+        "../../../assets/skybox/night_right.png", "../../../assets/skybox/night_left.png", "../../../assets/skybox/night_top.png",
+        "../../../assets/skybox/night_bottom.png", "../../../assets/skybox/night_front.png", "../../../assets/skybox/night_back.png"
     };
     Skybox skybox(dayFaces, nightFaces);
 
     // --- GRASS SETUP ---
     GrassSystem grassSystem;
     grassSystem.initTerrainData(terrain.getVertices(), terrain.getIndices(), 60.0f);
-    std::string gp = "../assets/grass/"; float sp = 190.0f;
+    std::string gp = "../../../assets/grass/"; float sp = 190.0f;
 
     for (int i = 1; i <= 6; i++) grassSystem.addGrassType(gp + "grass_" + (i<10?"0":"") + std::to_string(i) + ".png", 800000, sp, 0.15f, false);
     for (int i = 7; i <= 10; i++) grassSystem.addGrassType(gp + "grass_" + (i<10?"0":"") + std::to_string(i) + ".png", 8000, sp, 0.2f, false);
@@ -95,7 +102,7 @@ int main()
     ForestSystem forest;
     forest.initTerrainData(terrain.getVertices(), terrain.getIndices(), 60.0f);
 
-    std::string fp = "../assets/forrest/";
+    std::string fp = "../../../assets/forrest/";
 
     // Wir fluten die Map jetzt mit kleineren Objekten für mehr Dichte und Vielfalt:
 
@@ -116,7 +123,11 @@ int main()
     terrainShader.setInt("pebblesAlbedo", 0); terrainShader.setInt("pebblesNormal", 1); terrainShader.setInt("pebblesARM", 2);
     terrainShader.setInt("groundAlbedo", 3); terrainShader.setInt("groundNormal", 4); terrainShader.setInt("groundARM", 5);
     terrainShader.setInt("rockAlbedo", 6); terrainShader.setInt("rockNormal", 7); terrainShader.setInt("rockARM", 8);
+    terrainShader.setInt("shadowMap", 10); // NEW
     terrainShader.setFloat("tiling", 60.0f);
+
+    objectShader.use();
+    objectShader.setInt("shadowMap", 10); // NEW
 
     glm::vec3 sunPosDay(50.0f, 100.0f, 50.0f), sunColorDay(1.0f);
     glm::vec3 sunPosNight(50.0f, 100.0f, -50.0f), sunColorNight(0.1f, 0.1f, 0.3f);
@@ -134,20 +145,93 @@ int main()
         skybox.setDay(isDay);
         skybox.setNightFactor(isDay ? 0.0f : 1.0f);
 
-        auto setLight = [&](Shader& s) { s.use(); s.setVec3("lightPos", curSunPos); s.setVec3("lightColor", curSunCol); };
-        setLight(terrainShader); setLight(objectShader); setLight(waterShader);
+        // Calculate light direction for shadows
+        glm::vec3 lightDir = glm::normalize(curSunPos);
+        glm::vec3 sceneCenter(0.0f, 10.0f, 0.0f); // Center of your scene
+        float sceneRadius = 150.0f; // Adjust based on your scene size
+
+        // NEW: Calculate light space matrix
+        glm::mat4 lightSpaceMatrix = shadowMapper.getLightSpaceMatrix(
+            lightDir, sceneCenter, sceneRadius
+        );
 
         inputManager.processInput(deltaTime);
         int cw, ch; glfwGetFramebufferSize(window, &cw, &ch);
         if (cw == 0 || ch == 0) { glfwWaitEvents(); continue; }
         postEffects.checkResize(cw, ch);
 
+
+        glm::mat4 proj = glm::perspective(glm::radians(camera.getFov()), (float)cw/(float)ch, NEAR_PLANE, FAR_PLANE);
+        glm::mat4 view = camera.getViewMatrix();
+
+       // ============================================================
+       // PASS 1: SHADOW MAP RENDERING (Depth only)
+       // ============================================================
+        if (useShadows) {
+            shadowMapper.beginShadowPass();
+
+            Shader* shadowShader = shadowMapper.getShadowShader();
+
+            // Render terrain shadows
+            shadowShader->use();
+            shadowShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
+            shadowShader->setMat4("model", glm::scale(glm::mat4(1.0f), glm::vec3(60.0f)));
+            shadowShader->setBool("useInstancing", false);
+            terrain.draw(*shadowShader);
+
+            // Render forest shadows (instanced)
+            forest.drawShadows(*shadowShader, lightSpaceMatrix);
+
+            // Render scene objects shadows
+            shadowShader->use();
+            shadowShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
+            shadowShader->setBool("useInstancing", false);
+            auto& objects = sceneManager.getObjects();
+            for (auto& obj : objects) {
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::translate(model, obj.position);
+                model = glm::rotate(model, glm::radians(obj.rotation.x), glm::vec3(1, 0, 0));
+                model = glm::rotate(model, glm::radians(obj.rotation.y), glm::vec3(0, 1, 0));
+                model = glm::rotate(model, glm::radians(obj.rotation.z), glm::vec3(0, 0, 1));
+                model = glm::scale(model, obj.scale);
+                shadowShader->setMat4("model", model);
+
+                auto& resources = sceneManager.getResources();
+                if (resources.find(obj.modelKey) != resources.end()) {
+                    Model* objModel = resources[obj.modelKey];
+                    for (auto& mesh : objModel->meshes) {
+                        glBindVertexArray(mesh.VAO);
+                        glDrawElements(GL_TRIANGLES, mesh.indices.size(),
+                            GL_UNSIGNED_INT, 0);
+                    }
+                }
+            }
+
+            shadowMapper.endShadowPass(cw, ch);
+        }
+
+        // ============================================================
+        // PASS 2: NORMAL RENDERING (With shadows)
+        // ============================================================
         postEffects.beginRender();
         glClearColor(curFogCol.r, curFogCol.g, curFogCol.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glm::mat4 proj = glm::perspective(glm::radians(camera.getFov()), (float)cw/(float)ch, NEAR_PLANE, FAR_PLANE);
-        glm::mat4 view = camera.getViewMatrix();
+        // Bind shadow map to texture unit 10
+        if (useShadows) {
+            shadowMapper.bindShadowMap(10);
+        }
+
+        // Set lighting uniforms
+        auto setLight = [&](Shader& s) {
+            s.use();
+            s.setVec3("lightPos", curSunPos);
+            s.setVec3("lightColor", curSunCol);
+            s.setMat4("lightSpaceMatrix", lightSpaceMatrix); // NEW
+            s.setBool("useShadows", useShadows); // NEW
+            };
+        setLight(terrainShader);
+        setLight(objectShader);
 
         // Terrain
         terrainShader.use();
@@ -170,7 +254,7 @@ int main()
         objectShader.setVec3("viewPos", camera.getPosition());
 
         sceneManager.drawAll(objectShader); // Manuell platzierte Objekte
-        forest.draw(objectShader, view, proj, camera.getPosition()); // Automatisch generierter Wald
+        forest.draw(objectShader, view, proj, camera.getPosition(), lightSpaceMatrix); // Automatisch generierter Wald
 
         // Grass & Skybox
         grassSystem.draw(view, proj, (float)glfwGetTime(), camera.getPosition(), curSunPos, curSunCol);
@@ -188,8 +272,9 @@ int main()
 
         postEffects.endRender(NEAR_PLANE, FAR_PLANE, curFogCol, enableFog ? fogDensity : 0.0f);
 
+        // UI
         ui.beginFrame();
-        ui.renderUI(camera, sceneManager, view, proj, useNormalMap, useARMMap, limitFps, fpsLimit, enableFog, fogDensity, isDay);
+        ui.renderUI(camera, sceneManager, view, proj, useNormalMap, useARMMap, limitFps, fpsLimit, enableFog, fogDensity, isDay, useShadows);
         ui.endFrame();
 
         glfwSwapBuffers(window);

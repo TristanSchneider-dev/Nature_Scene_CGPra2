@@ -10,7 +10,7 @@
 
 GrassSystem::GrassSystem() {
     // Shader laden
-    shader = new Shader("../shaders/grass.vs.glsl", "../shaders/grass.fs.glsl");
+    shader = new Shader("../../../shaders/grass.vs.glsl", "../../../shaders/grass.fs.glsl");
 
     // Standard Quad
     float q[] = {

@@ -17,7 +17,7 @@ Terrain::~Terrain() {
 }
 
 void Terrain::loadMaterials() {
-    std::string root = "../assets/terrain/";
+    std::string root = "../../../assets/terrain/";
 
     std::string p1 = root + "ganges_river_pebbles_2k.gltf/textures/";
     matPebbles.albedo = loadTexture((p1 + "ganges_river_pebbles_diff_2k.jpg").c_str());

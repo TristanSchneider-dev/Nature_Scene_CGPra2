@@ -4,7 +4,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 Skybox::Skybox(const std::vector<std::string>& dayFaces, const std::vector<std::string>& nightFaces) {
-    skyboxShader = new Shader("../shaders/skybox.vs.glsl", "../shaders/skybox.fs.glsl");
+    skyboxShader = new Shader("../../../shaders/skybox.vs.glsl", "../../../shaders/skybox.fs.glsl");
     setupMesh();
 
     // Beide Cubemaps laden

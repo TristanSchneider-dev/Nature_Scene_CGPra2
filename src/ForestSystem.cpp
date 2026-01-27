@@ -369,13 +369,43 @@ void ForestSystem::updateInstances() {
     }
 }
 
-void ForestSystem::draw(Shader& shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& viewPos) {
+// Render only depth for shadow mapping
+void ForestSystem::drawShadows(Shader& shadowShader, const glm::mat4& lightSpaceMatrix) {
+    shadowShader.use();
+    shadowShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+    shadowShader.setBool("useInstancing", true);
+
+    for (auto& entry : forestTypes) {
+        ForestType& fType = entry.second;
+        if (fType.matrixCache.empty()) continue;
+
+        Model* model = fType.model;
+
+        // Draw all meshes instanced (depth only)
+        for (unsigned int i = 0; i < model->meshes.size(); i++) {
+            glBindVertexArray(model->meshes[i].VAO);
+            glDrawElementsInstanced(
+                GL_TRIANGLES,
+                static_cast<unsigned int>(model->meshes[i].indices.size()),
+                GL_UNSIGNED_INT,
+                0,
+                static_cast<unsigned int>(fType.matrixCache.size())
+            );
+            glBindVertexArray(0);
+        }
+    }
+
+    shadowShader.setBool("useInstancing", false);
+}
+
+void ForestSystem::draw(Shader& shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& viewPos, const glm::mat4& lightSpaceMatrix) {
     // GPU Puffer updaten
     updateInstances();
 
     shader.use();
     shader.setMat4("view", view);
     shader.setMat4("projection", projection);
+    shader.setMat4("lightSpaceMatrix", lightSpaceMatrix); // NEW
     shader.setVec3("viewPos", viewPos);
 
     // Keine Maps für generierte Assets (verhindert schwarze Bäume)

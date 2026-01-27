@@ -20,7 +20,7 @@ public:
     // RenderUI braucht jetzt View & Projection Matrix für das 3D-Gizmo
     void renderUI(Camera& camera, SceneManager& sm, const glm::mat4& view, const glm::mat4& proj,
               bool& useNormal, bool& useARM, bool& limitFps, int& fpsLimit,
-              bool& enableFog, float& fogDensity, bool& isDay); // <--- Hier
+              bool& enableFog, float& fogDensity, bool& isDay, bool& useShadows); // <--- Hier
 
     void toggleFullscreen();
     void setVSync(bool enabled);

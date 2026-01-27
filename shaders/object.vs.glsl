@@ -3,19 +3,21 @@ layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec2 aTexCoords;
 layout (location = 3) in vec3 aTangent;
-// NEU: Matrix für Instancing (belegt Location 4, 5, 6, 7)
+// Matrix für Instancing (belegt Location 4, 5, 6, 7)
 layout (location = 4) in mat4 aInstanceMatrix;
 
 out vec2 TexCoords;
 out vec3 WorldPos;
 out vec3 Normal;
 out mat3 TBN;
+out vec4 FragPosLightSpace; // For shadow mapping
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform mat4 lightSpaceMatrix; // Light's view-projection matrix
 
-// NEU: Schalter
+// Schalter
 uniform bool useInstancing;
 
 void main()
@@ -39,6 +41,9 @@ void main()
     T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
     TBN = mat3(T, B, N);
+
+    // Calculate position in light space for shadow mapping
+    FragPosLightSpace = lightSpaceMatrix * vec4(WorldPos, 1.0);
 
     gl_Position = projection * view * vec4(WorldPos, 1.0);
 }

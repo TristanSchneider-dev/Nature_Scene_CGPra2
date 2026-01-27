@@ -9,11 +9,13 @@ out VS_OUT {
     vec2 TexCoords;
     vec3 Normal;
     mat3 TBN;
+    vec4 FragPosLightSpace; // NEW
 } vs_out;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform mat4 lightSpaceMatrix; // NEW
 
 void main()
 {
@@ -31,6 +33,9 @@ void main()
 
     vs_out.Normal = N; // Für Slopes Berechnung brauchen wir die Geometrie-Normale
     vs_out.TBN = mat3(T, B, N);
+
+    // Shadow mapping
+    vs_out.FragPosLightSpace = lightSpaceMatrix * vec4(vs_out.FragPos, 1.0);
 
     gl_Position = projection * view * worldPos;
 }

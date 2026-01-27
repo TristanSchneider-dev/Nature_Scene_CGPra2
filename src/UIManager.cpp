@@ -35,7 +35,7 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
                          const glm::mat4& view, const glm::mat4& projection,
                          bool& useNormalMap, bool& useARMMap,
                          bool& limitFps, int& fpsLimit,
-                         bool& enableFog, float& fogDensity, bool& isDay)
+                         bool& enableFog, float& fogDensity, bool& isDay, bool& useShadows)
 {
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::AllowAxisFlip(false);
@@ -162,6 +162,14 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
                 ImGui::SameLine();
                 ImGui::DragInt("Target", &fpsLimit, 1, 30, 240);
             }
+            ImGui::Separator();
+            ImGui::Checkbox("Shadows", &useShadows);
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Enable/disable shadow mapping for trees and objects");
+            }
+
             ImGui::Separator();
             ImGui::Checkbox("Fog", &enableFog);
             if (enableFog) ImGui::SliderFloat("Density", &fogDensity, 0.0f, 0.1f, "%.4f");
