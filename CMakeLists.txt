@@ -34,7 +34,7 @@ add_executable(TerrainOpenGL
         src/GrassSystem.h
         src/GrassSystem.cpp
         src/ForestSystem.cpp
- "src/ShadowMapper.h")
+ "src/ShadowMapper.h" "src/BirdSystem.h" "src/BirdSystem.cpp")
 
 target_include_directories(TerrainOpenGL PRIVATE
         src

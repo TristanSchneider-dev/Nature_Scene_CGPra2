@@ -188,6 +188,22 @@ void UIManager::renderUI(Camera& camera, SceneManager& sceneManager,
                 ImGui::SliderFloat("Wave Length", &sceneManager.env.waterWavelength, 0.1f, 5.0f);
                 ImGui::TreePop();
             }
+
+            ImGui::Separator();
+            if (ImGui::TreeNode("Bird Settings")) {
+                const char* modes[] = { "Billboard (2D)", "3D Mesh (Animated)" };
+                if (ImGui::Combo("Render Mode", &sceneManager.birdRenderMode, modes, 2)) {
+                    // Mode hat sich geändert - wird in main.cpp verarbeitet
+                }
+
+                ImGui::SliderInt("Bird Count", &sceneManager.birdCount, 0, 100);
+                ImGui::SliderFloat("Flight Speed", &sceneManager.birdSpeed, 1.0f, 20.0f);
+
+                ImGui::Text("Billboard = Sprites facing camera");
+                ImGui::Text("3D Mesh = Procedural wing animation");
+
+                ImGui::TreePop();
+            }
             ImGui::EndTabItem();
         }
 

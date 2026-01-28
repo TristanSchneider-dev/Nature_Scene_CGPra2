@@ -19,7 +19,8 @@
 #include "Skybox.h"
 #include "GrassSystem.h"
 #include "ForestSystem.h" 
-#include "ShadowMapper.h" // NEW
+#include "ShadowMapper.h" 
+#include "BirdSystem.h" 
 
 #include <iostream>
 #include <vector>
@@ -117,6 +118,13 @@ int main()
 
     // 100 Gruppen Gestrüpp (verbindet die Wälder)
     forest.addBiomeCluster("Scrub", 100, fp);
+
+    // --- BIRD SETUP ---
+    BirdSystem birdSystem;
+    birdSystem.init(30); // 30 Vögel
+    birdSystem.setRenderMode(BirdSystem::MESH_3D); // Starte mit 3D Modus
+    birdSystem.setFlightHeight(25.0f, 70.0f);
+    birdSystem.setBirdSpeed(8.0f);
 
     // Shader config
     terrainShader.use();
@@ -260,6 +268,10 @@ int main()
         grassSystem.draw(view, proj, (float)glfwGetTime(), camera.getPosition(), curSunPos, curSunCol);
         skybox.draw(view, proj);
 
+        // Birds 
+        birdSystem.update(deltaTime);
+        birdSystem.draw(view, proj, camera.getPosition(), (float)glfwGetTime());
+
         // Water
         waterShader.use();
         waterShader.setFloat("time", (float)glfwGetTime());
@@ -284,6 +296,16 @@ int main()
             double target = 1.0 / fpsLimit;
             while (glfwGetTime() < currentFrame + target) std::this_thread::yield();
         }
+
+        //bird UI
+        static int lastBirdMode = 1;
+        if (sceneManager.birdRenderMode != lastBirdMode) {
+            birdSystem.setRenderMode(sceneManager.birdRenderMode == 0
+                ? BirdSystem::BILLBOARD
+                : BirdSystem::MESH_3D);
+            lastBirdMode = sceneManager.birdRenderMode;
+        }
+        birdSystem.setBirdSpeed(sceneManager.birdSpeed);
     }
     glfwTerminate();
     return 0;
