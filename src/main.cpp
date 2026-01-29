@@ -122,7 +122,6 @@ int main()
     // --- BIRD SETUP ---
     BirdSystem birdSystem;
     birdSystem.init(30); // 30 Vögel
-    birdSystem.setRenderMode(BirdSystem::MESH_3D); // Starte mit 3D Modus
     birdSystem.setFlightHeight(25.0f, 70.0f);
     birdSystem.setBirdSpeed(8.0f);
 
@@ -131,11 +130,11 @@ int main()
     terrainShader.setInt("pebblesAlbedo", 0); terrainShader.setInt("pebblesNormal", 1); terrainShader.setInt("pebblesARM", 2);
     terrainShader.setInt("groundAlbedo", 3); terrainShader.setInt("groundNormal", 4); terrainShader.setInt("groundARM", 5);
     terrainShader.setInt("rockAlbedo", 6); terrainShader.setInt("rockNormal", 7); terrainShader.setInt("rockARM", 8);
-    terrainShader.setInt("shadowMap", 10); // NEW
+    terrainShader.setInt("shadowMap", 10); 
     terrainShader.setFloat("tiling", 60.0f);
 
     objectShader.use();
-    objectShader.setInt("shadowMap", 10); // NEW
+    objectShader.setInt("shadowMap", 10); 
 
     glm::vec3 sunPosDay(50.0f, 100.0f, 50.0f), sunColorDay(1.0f);
     glm::vec3 sunPosNight(50.0f, 100.0f, -50.0f), sunColorNight(0.1f, 0.1f, 0.3f);
@@ -158,7 +157,7 @@ int main()
         glm::vec3 sceneCenter(0.0f, 10.0f, 0.0f); // Center of your scene
         float sceneRadius = 150.0f; // Adjust based on your scene size
 
-        // NEW: Calculate light space matrix
+        // Calculate light space matrix
         glm::mat4 lightSpaceMatrix = shadowMapper.getLightSpaceMatrix(
             lightDir, sceneCenter, sceneRadius
         );
@@ -268,8 +267,19 @@ int main()
         grassSystem.draw(view, proj, (float)glfwGetTime(), camera.getPosition(), curSunPos, curSunCol);
         skybox.draw(view, proj);
 
-        // Birds 
-        birdSystem.update(deltaTime);
+        // Update bird settings from UI
+        static int lastBirdCount = 30;
+
+        // Bird Count dynamisch anpassen
+        if (sceneManager.birdCount != lastBirdCount) {
+            birdSystem.setBirdCount(sceneManager.birdCount);
+            lastBirdCount = sceneManager.birdCount;
+        }
+
+        birdSystem.setBirdSpeed(sceneManager.birdSpeed);
+
+        // Birds
+        birdSystem.update(deltaTime, (float)glfwGetTime());
         birdSystem.draw(view, proj, camera.getPosition(), (float)glfwGetTime());
 
         // Water
@@ -297,15 +307,6 @@ int main()
             while (glfwGetTime() < currentFrame + target) std::this_thread::yield();
         }
 
-        //bird UI
-        static int lastBirdMode = 1;
-        if (sceneManager.birdRenderMode != lastBirdMode) {
-            birdSystem.setRenderMode(sceneManager.birdRenderMode == 0
-                ? BirdSystem::BILLBOARD
-                : BirdSystem::MESH_3D);
-            lastBirdMode = sceneManager.birdRenderMode;
-        }
-        birdSystem.setBirdSpeed(sceneManager.birdSpeed);
     }
     glfwTerminate();
     return 0;

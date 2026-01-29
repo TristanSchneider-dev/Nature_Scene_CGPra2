@@ -50,7 +50,6 @@ public:
     void loadScene(const std::string& filename);
 
     // Bird settings
-    int birdRenderMode = 1; // 0 = Billboard, 1 = Mesh
     int birdCount = 30;
     float birdSpeed = 8.0f;
 

@@ -5,27 +5,20 @@
 #include <cmath>
 
 BirdSystem::BirdSystem()
-    : renderMode(BILLBOARD), globalSpeed(5.0f),
+    : globalSpeed(5.0f),
     minHeight(20.0f), maxHeight(60.0f),
     flightCenter(0.0f, 40.0f, 0.0f), flightRadius(80.0f),
-    spriteFrames(4), billboardVAO(0), billboardVBO(0), birdTexture(0),
-    meshVAO(0), meshVBO(0), meshEBO(0), meshVertexCount(0)
+    spriteFrames(4), billboardVAO(0), billboardVBO(0), birdTexture(0)
 {
     billboardShader = nullptr;
-    meshShader = nullptr;
 }
 
 BirdSystem::~BirdSystem() {
     if (billboardShader) delete billboardShader;
-    if (meshShader) delete meshShader;
-
+   
     glDeleteVertexArrays(1, &billboardVAO);
     glDeleteBuffers(1, &billboardVBO);
     glDeleteTextures(1, &birdTexture);
-
-    glDeleteVertexArrays(1, &meshVAO);
-    glDeleteBuffers(1, &meshVBO);
-    glDeleteBuffers(1, &meshEBO);
 }
 
 void BirdSystem::init(int birdCount) {
@@ -47,29 +40,59 @@ void BirdSystem::init(int birdCount) {
         );
     }
 
-    // Setup beide Modi
+    // Setup Billboards
     setupBillboards();
-    setupMesh();
 
     std::cout << "[BirdSystem] Initialized with " << birdCount << " birds" << std::endl;
 }
 
+void BirdSystem::setBirdCount(int count) {
+    if (count < 0) count = 0;
+    if (count > 200) count = 200; // Maximum für Performance
+
+    int currentCount = birds.size();
+
+    if (count > currentCount) {
+        // Vögel hinzufügen
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<float> phaseDist(0.0f, 6.28f);
+        std::uniform_real_distribution<float> speedDist(0.8f, 1.2f);
+        std::uniform_real_distribution<float> scaleDist(0.8f, 1.5f);
+
+        for (int i = currentCount; i < count; i++) {
+            birds.emplace_back(
+                getRandomStartPosition(),
+                getRandomVelocity(),
+                phaseDist(gen),
+                speedDist(gen),
+                scaleDist(gen)
+            );
+        }
+        std::cout << "[BirdSystem] Added " << (count - currentCount) << " birds (total: " << count << ")" << std::endl;
+    }
+    else if (count < currentCount) {
+        // Vögel entfernen
+        birds.resize(count);
+        std::cout << "[BirdSystem] Removed " << (currentCount - count) << " birds (total: " << count << ")" << std::endl;
+    }
+}
 // ============================================================================
 // BEWEGUNGS-UPDATE
 // ============================================================================
 
-void BirdSystem::update(float deltaTime) {
+void BirdSystem::update(float deltaTime, float currentTime) {
     for (auto& bird : birds) {
-        updateBirdMovement(bird, deltaTime);
+        updateBirdMovement(bird, deltaTime, currentTime);
     }
 }
 
-void BirdSystem::updateBirdMovement(Bird& bird, float deltaTime) {
+void BirdSystem::updateBirdMovement(Bird& bird, float deltaTime, float currentTime) {
     // 1. Basis-Bewegung
     bird.position += bird.velocity * globalSpeed * deltaTime;
 
     // 2. Sinus-Wellenbewegung (auf und ab)
-    bird.position.y += std::sin(glfwGetTime() * 2.0f + bird.phase) * 0.05f;
+    bird.position.y += std::sin(currentTime * 2.0f + bird.phase) * 0.05f;
 
     // 3. Kreisende Bewegung um Zentrum
     glm::vec3 toCenter = flightCenter - bird.position;
@@ -89,7 +112,7 @@ void BirdSystem::updateBirdMovement(Bird& bird, float deltaTime) {
     }
 
     // 5. Leichte Richtungsänderung (Flatter-Effekt)
-    float randomTurn = std::sin(glfwGetTime() * 3.0f + bird.phase) * 0.02f;
+    float randomTurn = std::sin(currentTime * 3.0f + bird.phase) * 0.02f;
     float angle = randomTurn;
     float cosA = std::cos(angle);
     float sinA = std::sin(angle);
@@ -119,9 +142,8 @@ glm::vec3 BirdSystem::getRandomVelocity() {
     return glm::normalize(vel) * 2.0f;
 }
 
-// ============================================================================
-// OPTION 1: BILLBOARD RENDERING
-// ============================================================================
+
+//  BILLBOARD BIRD RENDERING
 
 void BirdSystem::setupBillboards() {
     // Quad (wird zur Kamera ausgerichtet)
@@ -159,32 +181,6 @@ void BirdSystem::setupBillboards() {
     birdTexture = loadBirdTexture("../../../assets/birds/bird_sprite.png");
 }
 
-void BirdSystem::drawBillboards(const glm::mat4& view, const glm::mat4& projection,
-    const glm::vec3& cameraPos, float time) {
-    billboardShader->use();
-    billboardShader->setMat4("projection", projection);
-    billboardShader->setMat4("view", view);
-    billboardShader->setVec3("cameraPos", cameraPos);
-    billboardShader->setInt("birdTexture", 0);
-    billboardShader->setInt("frameCount", spriteFrames);
-    billboardShader->setFloat("time", time);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, birdTexture);
-
-    glBindVertexArray(billboardVAO);
-
-    for (const auto& bird : birds) {
-        billboardShader->setVec3("birdPos", bird.position);
-        billboardShader->setFloat("birdScale", bird.scale);
-        billboardShader->setFloat("wingPhase", bird.phase);
-        billboardShader->setFloat("wingSpeed", bird.wingSpeed);
-
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-    }
-
-    glBindVertexArray(0);
-}
 
 unsigned int BirdSystem::loadBirdTexture(const char* path) {
     unsigned int textureID;
@@ -218,129 +214,38 @@ unsigned int BirdSystem::loadBirdTexture(const char* path) {
     return textureID;
 }
 
-// ============================================================================
-// OPTION 2: 3D MESH RENDERING
-// ============================================================================
-
-void BirdSystem::setupMesh() {
-    createSimpleBirdMesh();
-
-    meshShader = new Shader(
-        "../../../shaders/bird_mesh.vs.glsl",
-        "../../../shaders/bird_mesh.fs.glsl"
-    );
-}
-
-void BirdSystem::createSimpleBirdMesh() {
-    // Einfacher Vogel: Körper + 2 Flügel
-    // Format: X, Y, Z, NX, NY, NZ, IsWing
-    std::vector<float> vertices = {
-        // Körper (Dreieck nach vorne)
-         0.0f,  0.0f,  0.5f,  0.0f, 1.0f, 0.0f, 0.0f,  // Kopf
-        -0.2f,  0.0f, -0.3f,  0.0f, 1.0f, 0.0f, 0.0f,  // Links
-         0.2f,  0.0f, -0.3f,  0.0f, 1.0f, 0.0f, 0.0f,  // Rechts
-         0.0f, -0.1f,  0.0f,  0.0f, 1.0f, 0.0f, 0.0f,  // Unten
-
-         // Linker Flügel
-         -0.2f,  0.0f, -0.3f,  0.0f, 1.0f, 0.0f, 1.0f,  // Basis
-         -0.8f,  0.0f,  0.0f,  0.0f, 1.0f, 0.0f, 1.0f,  // Spitze
-         -0.6f,  0.0f, -0.4f,  0.0f, 1.0f, 0.0f, 1.0f,  // Hinten
-
-         // Rechter Flügel
-          0.2f,  0.0f, -0.3f,  0.0f, 1.0f, 0.0f, 1.0f,  // Basis
-          0.8f,  0.0f,  0.0f,  0.0f, 1.0f, 0.0f, 1.0f,  // Spitze
-          0.6f,  0.0f, -0.4f,  0.0f, 1.0f, 0.0f, 1.0f   // Hinten
-    };
-
-    std::vector<unsigned int> indices = {
-        // Körper
-        0, 1, 2,  // Top
-        1, 3, 2,  // Bottom
-
-        // Linker Flügel
-        4, 5, 6,
-
-        // Rechter Flügel
-        7, 8, 9
-    };
-
-    meshVertexCount = indices.size();
-
-    glGenVertexArrays(1, &meshVAO);
-    glGenBuffers(1, &meshVBO);
-    glGenBuffers(1, &meshEBO);
-
-    glBindVertexArray(meshVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, meshVBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
-
-    // Position
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)0);
-
-    // Normal
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(3 * sizeof(float)));
-
-    // IsWing flag
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(6 * sizeof(float)));
-
-    glBindVertexArray(0);
-}
-
-void BirdSystem::drawMeshes(const glm::mat4& view, const glm::mat4& projection, float time) {
-    meshShader->use();
-    meshShader->setMat4("projection", projection);
-    meshShader->setMat4("view", view);
-    meshShader->setFloat("time", time);
-    meshShader->setVec3("birdColor", glm::vec3(0.3f, 0.3f, 0.35f)); // Dunkles Grau
-
-    glBindVertexArray(meshVAO);
-
-    for (const auto& bird : birds) {
-        // Berechne Rotation basierend auf Flugrichtung
-        glm::vec3 forward = glm::normalize(bird.velocity);
-        float yaw = std::atan2(forward.x, forward.z);
-
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, bird.position);
-        model = glm::rotate(model, yaw, glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(bird.scale));
-
-        meshShader->setMat4("model", model);
-        meshShader->setFloat("wingPhase", bird.phase);
-        meshShader->setFloat("wingSpeed", bird.wingSpeed);
-
-        glDrawElements(GL_TRIANGLES, meshVertexCount, GL_UNSIGNED_INT, 0);
-    }
-
-    glBindVertexArray(0);
-}
-
-// ============================================================================
-// MAIN DRAW
-// ============================================================================
-
 void BirdSystem::draw(const glm::mat4& view, const glm::mat4& projection,
     const glm::vec3& cameraPos, float time) {
-    // Alpha Blending aktivieren für transparente Vögel
+    // Alpha Blending aktivieren
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Depth Test an, aber kein Depth Write (damit Vögel sich nicht gegenseitig verdecken)
+    // Depth Test an, aber kein Depth Write
     glDepthMask(GL_FALSE);
 
-    if (renderMode == BILLBOARD) {
-        drawBillboards(view, projection, cameraPos, time);
+    billboardShader->use();
+    billboardShader->setMat4("projection", projection);
+    billboardShader->setMat4("view", view);
+    billboardShader->setVec3("cameraPos", cameraPos);
+    billboardShader->setInt("birdTexture", 0);
+    billboardShader->setInt("frameCount", spriteFrames);
+    billboardShader->setFloat("time", time);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, birdTexture);
+
+    glBindVertexArray(billboardVAO);
+
+    for (const auto& bird : birds) {
+        billboardShader->setVec3("birdPos", bird.position);
+        billboardShader->setFloat("birdScale", bird.scale);
+        billboardShader->setFloat("wingPhase", bird.phase);
+        billboardShader->setFloat("wingSpeed", bird.wingSpeed);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
     }
-    else {
-        drawMeshes(view, projection, time);
-    }
+
+    glBindVertexArray(0);
 
     // Zurücksetzen
     glDepthMask(GL_TRUE);
